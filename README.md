@@ -1,4 +1,4 @@
-# SHRKVis
+# SharkVis
 
 Audio visualizer, inspired by
 [cava](https://github.com/karlstav/cava). Written in C, with more features without any "bloat"
