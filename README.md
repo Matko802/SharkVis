@@ -1,19 +1,15 @@
 # SHRKVis
 
-A real-time audio spectrum analyzer for the terminal, inspired by
-[cava](https://github.com/karlstav/cava). Written in C, it captures the audio
-output of your machine via PulseAudio and renders animated spectrum bars with
-low-latency ANSI escapes, using per-cell diffing so only changed cells are
-redrawn.
+Audio visualizer, inspired by
+[cava](https://github.com/karlstav/cava). Written in C, with more features without any "bloat"
 
 ## Features
 
-- PulseAudio / PipeWire (via its PulseAudio compatibility layer) output monitoring
-- Smooth fall, peak-hold and noise reduction effects
-- Optional autosensitivity, manual sensitivity control, and adjustable cutoff frequencies
-- Fully interactive in-terminal settings panel
-- Gradient or monochrome bar colors
-- Config file support
+- PulseAudio / PipeWire support
+- smoothness adjust, noise reduction
+- autosensitivity, manual sensitivity control, adjustable cutoff frequencies
+- TUI settings
+- color customization
 
 ## Building
 
@@ -45,9 +41,6 @@ Keys:
 | ----------------- | ------------------------------- |
 | `g`               | open settings panel             |
 | `q` / `Ctrl-C`    | quit                            |
-| `up` / `down`     | select setting                  |
-| `left` / `right`  | adjust setting (applies live)   |
-| `g` / `Esc`       | close settings panel            |
 
 The config file is looked up in `$SHRKVIS_CONFIG`, then
 `~/.config/SHRKVis/config`, then `./config`. Example:
