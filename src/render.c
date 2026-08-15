@@ -440,9 +440,7 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
     for (unsigned y = 0; y < rows; y++) {
         for (size_t x = x_start; x < x_start + region_w; x++) {
             unsigned char g = r->lj_glow[(size_t)y * cols + x];
-            int gi = g ? (int)((g + 31) / 32) : 0;
-            if (gi > 8)
-                gi = 8;
+            int gi = g ? 8 : 0;
             draw_cell(r, y, x, gi, out, out_len, cap);
         }
     }
