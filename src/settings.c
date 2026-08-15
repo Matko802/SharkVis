@@ -291,12 +291,31 @@ static void panel_row(char *out, size_t *n, size_t cap, unsigned y, int pw,
     }
     if (len < 0)
         return;
-    if (len > pw)
-        len = pw;
+    if (len > (int)sizeof text - 1)
+        len = (int)sizeof text - 1;
+
+    int emit = 0, vis = 0;
+    const unsigned char *p = (const unsigned char *)text;
+    const unsigned char *end = p + len;
+    while (p < end && vis < pw) {
+        unsigned char c = *p;
+        int seq = (c < 0x80) ? 1 : ((c & 0xE0) == 0xC0 ? 2 : (c & 0xF0) == 0xE0 ? 3 : 4);
+        if (vis + 1 > pw)
+            break;
+        vis++;
+        emit += seq;
+        p += seq;
+    }
+
     int k = snprintf(out + *n, cap - *n, "\x1b[%u;1H%s%.*s\x1b[0m", y,
-                     style ? style : "", len, text);
+                     style ? style : "", emit, text);
     if (k > 0)
         *n += (size_t)k;
+    for (int i = vis; i < pw; i++) {
+        int m = snprintf(out + *n, cap - *n, " ");
+        if (m > 0)
+            *n += (size_t)m;
+    }
 }
 
 void settings_draw(settings_ui *s, const srk_config *cfg, char *out,
