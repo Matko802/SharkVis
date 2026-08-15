@@ -1,6 +1,7 @@
 # SharkVis
 
-Linux only audio visualizer made in C inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https://github.com/PosixAlchemist/cli-visualizer)
+Linux only audio visualizer made in C 
+Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https://github.com/PosixAlchemist/cli-visualizer)
 
 ## Features
 
