@@ -42,11 +42,6 @@ make PREFIX=$HOME/.local install
 sharkvis
 ```
 
-To use the default PulseAudio sink (what's currently playing), just launch it.
-It also works as a monitor of your microphone / line-in source; see the config
-below to change the input. Audio must be playing on the system for the
-visualizer to move.
-
 ## Usage
 
 ```sh
@@ -65,29 +60,6 @@ Keys:
 The config file is looked up in `$SHARKVIS_CONFIG`, then
 `~/.config/SharkVis/config`, then `./config`. Settings changed in the panel
 are saved automatically when you close the panel or quit. Example:
-
-```ini
-[general]
-bars = 40            ; 0 = auto fit to terminal width
-bar_width = 2
-bar_spacing = 1
-framerate = 60
-sensitivity = 100
-autosens = 1
-lower_cutoff_freq = 50
-higher_cutoff_freq = 8000
-
-[smoothing]
-noise_reduction = 0.2
-
-[input]
-source = auto
-sample_rate = 48000
-channels = 2
-
-[color]
-gradient = 0
-```
 
 ## Nix flakes
 
