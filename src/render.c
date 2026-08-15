@@ -69,14 +69,12 @@ void renderer_free(renderer_t *r) {
     r->prev = NULL;
 }
 
-void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_len,
-                   size_t cap) {
-    unsigned rows = r->rows, cols = r->cols;
-    if (rows == 0 || cols == 0)
-        return;
-
-    size_t region = cols - r->x_off;
-    if (region == 0)
+static void draw_bars(renderer_t *r, const double *values, size_t nbars,
+                      size_t x_start, size_t region_w, char *out,
+                      size_t *out_len, size_t cap) {
+    unsigned rows = r->rows;
+    size_t cols = r->cols;
+    if (rows == 0 || region_w == 0)
         return;
 
     size_t bw = r->bar_width ? r->bar_width : 1;
@@ -84,7 +82,7 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
     if (step == 0)
         step = 1;
 
-    for (size_t b = 0; b < r->num_bars; b++) {
+    for (size_t b = 0; b < nbars; b++) {
         double v = values[b];
         if (!(v > 0.0))
             v = 0.0;
@@ -95,12 +93,12 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
             h = 0.1;
 
         size_t base = b * step;
-        if (base >= region)
+        if (base >= region_w)
             break;
 
         for (size_t w = 0; w < bw; w++) {
-            size_t col = r->x_off + base + w;
-            if (col >= cols)
+            size_t col = x_start + base + w;
+            if (col >= cols || col >= x_start + region_w)
                 break;
             for (unsigned y = 0; y < rows; y++) {
                 unsigned fb = rows - 1 - y;
@@ -130,12 +128,12 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
         }
     }
 
-    for (size_t col = 0; col < region; col++) {
+    for (size_t col = 0; col < region_w; col++) {
         size_t base = col / step;
-        bool in_bar = base < r->num_bars && col - base * step < bw;
+        bool in_bar = base < nbars && col - base * step < bw;
         if (in_bar)
             continue;
-        size_t abs_col = r->x_off + col;
+        size_t abs_col = x_start + col;
         for (unsigned y = 0; y < rows; y++) {
             size_t idx = (size_t)y * cols + abs_col;
             if (r->prev[idx] == 0xFF)
@@ -147,4 +145,22 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
                 *out_len += (size_t)n;
         }
     }
+}
+
+void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_len,
+                   size_t cap) {
+    size_t region = r->cols - r->x_off;
+    if (region == 0)
+        return;
+    draw_bars(r, values, r->num_bars, r->x_off, region, out, out_len, cap);
+}
+
+void renderer_draw_stereo(renderer_t *r, const double *left, const double *right,
+                          size_t per_ch, char *out, size_t *out_len, size_t cap) {
+    size_t region = r->cols - r->x_off;
+    if (region == 0)
+        return;
+    size_t half = region / 2;
+    draw_bars(r, left, per_ch, r->x_off, half, out, out_len, cap);
+    draw_bars(r, right, per_ch, r->x_off + half, region - half, out, out_len, cap);
 }

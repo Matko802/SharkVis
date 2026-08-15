@@ -23,5 +23,7 @@ void renderer_clear(renderer_t *r);
 void renderer_free(renderer_t *r);
 void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_len,
                    size_t cap);
+void renderer_draw_stereo(renderer_t *r, const double *left, const double *right,
+                          size_t per_ch, char *out, size_t *out_len, size_t cap);
 
 #endif

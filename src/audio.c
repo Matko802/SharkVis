@@ -87,7 +87,6 @@ static void *capture_thread(void *arg) {
     ss.format = PA_SAMPLE_S16LE;
     ss.rate = a->rate;
     ss.channels = (a->channels < 1) ? 1 : ((a->channels > 2) ? 2 : a->channels);
-
     const char *dev = NULL;
     char *monitor = NULL;
     if (!a->source || !a->source[0] || strcmp(a->source, "auto") == 0 ||
@@ -132,10 +131,10 @@ static void *capture_thread(void *arg) {
         for (size_t f = 0; f < frames; f++) {
             if (a->count >= a->capacity)
                 break;
-            long sum = 0;
             for (unsigned ch = 0; ch < ss.channels; ch++)
-                sum += raw[f * ss.channels + ch];
-            a->buf[a->count++] = (double)sum / (double)(ss.channels * 32768.0);
+                a->buf[ch][a->count] =
+                    (double)raw[f * ss.channels + ch] / 32768.0;
+            a->count++;
         }
         pthread_mutex_unlock(&a->lock);
     }
@@ -149,26 +148,31 @@ void audio_init(audio_t *a, size_t capacity) {
     memset(a, 0, sizeof *a);
     pthread_mutex_init(&a->lock, NULL);
     a->capacity = capacity;
-    a->buf = calloc(capacity, sizeof *a->buf);
-    a->work = calloc(capacity, sizeof *a->work);
+    a->buf[0] = calloc(capacity, sizeof *a->buf[0]);
+    a->buf[1] = calloc(capacity, sizeof *a->buf[1]);
+    a->work[0] = calloc(capacity, sizeof *a->work[0]);
+    a->work[1] = calloc(capacity, sizeof *a->work[1]);
 }
 
 void audio_start(audio_t *a, const char *source, unsigned rate, unsigned channels) {
     a->source = source;
     a->rate = rate;
-    a->channels = channels;
+    a->channels = (channels < 1) ? 1 : ((channels > 2) ? 2 : channels);
     a->terminate = false;
     a->error[0] = '\0';
     pthread_create(&a->thread, NULL, capture_thread, a);
 }
 
-size_t audio_consume(audio_t *a, const double **samples) {
+size_t audio_consume(audio_t *a, const double **left, const double **right) {
     pthread_mutex_lock(&a->lock);
     size_t n = a->count;
-    if (n > 0)
-        memcpy(a->work, a->buf, n * sizeof *a->work);
+    if (n > 0) {
+        memcpy(a->work[0], a->buf[0], n * sizeof *a->work[0]);
+        memcpy(a->work[1], a->buf[1], n * sizeof *a->work[1]);
+    }
     a->count = 0;
-    *samples = a->work;
+    *left = a->work[0];
+    *right = (a->channels > 1) ? a->work[1] : NULL;
     pthread_mutex_unlock(&a->lock);
     return n;
 }
@@ -185,8 +189,12 @@ void audio_stop(audio_t *a) {
     a->terminate = true;
     pthread_join(a->thread, NULL);
     pthread_mutex_destroy(&a->lock);
-    free(a->buf);
-    free(a->work);
-    a->buf = NULL;
-    a->work = NULL;
+    free(a->buf[0]);
+    free(a->buf[1]);
+    free(a->work[0]);
+    free(a->work[1]);
+    a->buf[0] = NULL;
+    a->buf[1] = NULL;
+    a->work[0] = NULL;
+    a->work[1] = NULL;
 }

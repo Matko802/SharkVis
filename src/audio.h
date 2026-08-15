@@ -7,8 +7,8 @@
 
 typedef struct {
     pthread_mutex_t lock;
-    double *buf;
-    double *work;
+    double *buf[2];
+    double *work[2];
     size_t capacity;
     size_t count;
     volatile bool terminate;
@@ -21,7 +21,7 @@ typedef struct {
 
 void audio_init(audio_t *a, size_t capacity);
 void audio_start(audio_t *a, const char *source, unsigned rate, unsigned channels);
-size_t audio_consume(audio_t *a, const double **samples);
+size_t audio_consume(audio_t *a, const double **left, const double **right);
 bool audio_failed(audio_t *a);
 const char *audio_error(audio_t *a);
 void audio_stop(audio_t *a);

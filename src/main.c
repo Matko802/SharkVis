@@ -43,29 +43,43 @@ static int panel_width_for(unsigned cols) {
     return (int)pw;
 }
 
-static void apply_settings(dsp_t *dsp, renderer_t *rnd, audio_t *audio,
-                           srk_config *cfg, size_t *bars, double **heights,
-                           unsigned rows, unsigned cols, unsigned chmask,
-                           bool audio_reinit, size_t x_off) {
-    size_t new_bars = cfg->bars
+static size_t bar_count_for(unsigned cols, const srk_config *cfg) {
+    size_t b = cfg->bars
         ? cfg->bars
         : (size_t)(cols / (cfg->bar_width + cfg->bar_spacing));
-    if (new_bars < 1)
-        new_bars = 1;
+    return b < 1 ? 1 : b;
+}
+
+static size_t per_ch_bars(size_t bars, unsigned channels) {
+    if (channels > 1 && bars > 1)
+        return bars / 2;
+    return bars;
+}
+
+static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
+                           srk_config *cfg, size_t *bars, double *heights[2],
+                           unsigned rows, unsigned cols, unsigned chmask,
+                           bool audio_reinit, size_t x_off) {
+    size_t new_bars = bar_count_for(cols, cfg);
+    size_t per_ch = per_ch_bars(new_bars, cfg->channels);
 
     if ((chmask & (CH_DSP | CH_AUDIO)) || new_bars != *bars) {
-        double saved_sens = dsp->sens;
-        bool saved_sens_init = dsp->sens_init;
-        dsp_free(dsp);
-        dsp_init(dsp, new_bars, cfg->sample_rate, cfg->autosens,
-                 cfg->noise_reduction, cfg->lower_cutoff, cfg->higher_cutoff);
-        dsp->sens = saved_sens;
-        dsp->sens_init = saved_sens_init;
+        for (int ch = 0; ch < 2; ch++) {
+            double saved_sens = dsp[ch].sens;
+            bool saved_sens_init = dsp[ch].sens_init;
+            dsp_free(&dsp[ch]);
+            dsp_init(&dsp[ch], per_ch, cfg->sample_rate, cfg->autosens,
+                     cfg->noise_reduction, cfg->lower_cutoff, cfg->higher_cutoff);
+            dsp[ch].sens = saved_sens;
+            dsp[ch].sens_init = saved_sens_init;
+        }
     }
 
     if (new_bars != *bars) {
-        free(*heights);
-        *heights = calloc(new_bars, sizeof **heights);
+        free(heights[0]);
+        free(heights[1]);
+        heights[0] = calloc(new_bars, sizeof **heights);
+        heights[1] = calloc(new_bars, sizeof **heights);
         *bars = new_bars;
         renderer_resize(rnd, rows, cols, new_bars);
     }
@@ -76,12 +90,14 @@ static void apply_settings(dsp_t *dsp, renderer_t *rnd, audio_t *audio,
     renderer_set_offset(rnd, x_off);
     renderer_clear(rnd);
 
-    if (chmask)
-        memset(*heights, 0, *bars * sizeof **heights);
+    if (chmask) {
+        memset(heights[0], 0, *bars * sizeof **heights);
+        memset(heights[1], 0, *bars * sizeof **heights);
+    }
 
     if (audio_reinit) {
         audio_stop(audio);
-        audio_init(audio, dsp->input_buffer_size);
+        audio_init(audio, dsp[0].input_buffer_size);
         audio_start(audio, cfg->source, cfg->sample_rate, cfg->channels);
     }
 }
@@ -136,6 +152,10 @@ int main(int argc, char **argv) {
         cfg.lower_cutoff = 1;
     if (cfg.higher_cutoff < cfg.lower_cutoff)
         cfg.higher_cutoff = cfg.lower_cutoff + 1;
+    if (cfg.channels < 1)
+        cfg.channels = 1;
+    if (cfg.channels > 2)
+        cfg.channels = 2;
 
     unsigned rows, cols;
     if (!term_winsize(1, &rows, &cols)) {
@@ -143,23 +163,23 @@ int main(int argc, char **argv) {
         cols = 80;
     }
 
-    size_t bars = cfg.bars ? cfg.bars
-                           : (size_t)(cols / (cfg.bar_width + cfg.bar_spacing));
-    if (bars < 1)
-        bars = 1;
+    size_t bars = bar_count_for(cols, &cfg);
+    size_t per_ch = per_ch_bars(bars, cfg.channels);
 
-    dsp_t dsp;
-    dsp_init(&dsp, bars, cfg.sample_rate, cfg.autosens, cfg.noise_reduction,
-             cfg.lower_cutoff, cfg.higher_cutoff);
+    dsp_t dsp[2];
+    for (int ch = 0; ch < 2; ch++)
+        dsp_init(&dsp[ch], per_ch, cfg.sample_rate, cfg.autosens,
+                 cfg.noise_reduction, cfg.lower_cutoff, cfg.higher_cutoff);
 
     audio_t audio;
-    audio_init(&audio, dsp.input_buffer_size);
+    audio_init(&audio, dsp[0].input_buffer_size);
     audio_start(&audio, cfg.source, cfg.sample_rate, cfg.channels);
 
     if (!term_raw_enter(0)) {
         fprintf(stderr, "SharkVis: not a terminal\n");
         audio_stop(&audio);
-        dsp_free(&dsp);
+        for (int ch = 0; ch < 2; ch++)
+            dsp_free(&dsp[ch]);
         config_free(&cfg);
         return 1;
     }
@@ -180,7 +200,9 @@ int main(int argc, char **argv) {
     renderer_t rnd;
     renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars, cfg.gradient);
 
-    double *heights = malloc(bars * sizeof *heights);
+    double *heights[2];
+    heights[0] = malloc(bars * sizeof *heights[0]);
+    heights[1] = malloc(bars * sizeof *heights[1]);
     char *out = malloc((size_t)1 << 20);
 
     settings_ui *st = settings_new();
@@ -199,7 +221,7 @@ int main(int argc, char **argv) {
                 in_settings = false;
                 printf("\x1b[2J\x1b[H");
                 fflush(stdout);
-                apply_settings(&dsp, &rnd, &audio, &cfg, &bars, &heights, rows,
+                apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights, rows,
                                cols, chmask, !!(chmask & CH_AUDIO), 0);
                 chmask = 0;
                 if (!config_save(&cfg, save_path))
@@ -210,7 +232,7 @@ int main(int argc, char **argv) {
             } else {
                 settings_key(st, &cfg, key, &chmask);
                 if (chmask) {
-                    apply_settings(&dsp, &rnd, &audio, &cfg, &bars, &heights,
+                    apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,
                                    rows, cols, chmask, !!(chmask & CH_AUDIO),
                                    (size_t)panel_width_for(cols));
                     printf("\x1b[2J\x1b[H");
@@ -235,23 +257,26 @@ int main(int argc, char **argv) {
             unsigned nr, nc;
             if (term_winsize(1, &nr, &nc) && nr > 0 && nc > 0 &&
                 (nr != rows || nc != cols)) {
-                size_t new_bars = cfg.bars
-                    ? cfg.bars
-                    : (size_t)(nc / (cfg.bar_width + cfg.bar_spacing));
+                size_t new_bars = bar_count_for(nc, &cfg);
                 if (new_bars < 1)
                     new_bars = 1;
+                size_t per = per_ch_bars(new_bars, cfg.channels);
                 cols = nc;
                 rows = nr;
                 bars = new_bars;
-                double saved_sens = dsp.sens;
-                bool saved_sens_init = dsp.sens_init;
-                dsp_free(&dsp);
-                dsp_init(&dsp, bars, cfg.sample_rate, cfg.autosens,
-                         cfg.noise_reduction, cfg.lower_cutoff, cfg.higher_cutoff);
-                dsp.sens = saved_sens;
-                dsp.sens_init = saved_sens_init;
-                free(heights);
-                heights = malloc(bars * sizeof *heights);
+                for (int ch = 0; ch < 2; ch++) {
+                    double saved_sens = dsp[ch].sens;
+                    bool saved_sens_init = dsp[ch].sens_init;
+                    dsp_free(&dsp[ch]);
+                    dsp_init(&dsp[ch], per, cfg.sample_rate, cfg.autosens,
+                             cfg.noise_reduction, cfg.lower_cutoff, cfg.higher_cutoff);
+                    dsp[ch].sens = saved_sens;
+                    dsp[ch].sens_init = saved_sens_init;
+                }
+                free(heights[0]);
+                free(heights[1]);
+                heights[0] = malloc(bars * sizeof *heights[0]);
+                heights[1] = malloc(bars * sizeof *heights[1]);
                 renderer_resize(&rnd, rows, cols, bars);
                 if (in_settings)
                     renderer_set_offset(&rnd, (size_t)panel_width_for(cols));
@@ -260,25 +285,36 @@ int main(int argc, char **argv) {
             }
         }
 
-        const double *samples = NULL;
-        size_t n = audio_consume(&audio, &samples);
-        if (n > 0)
-            dsp_execute(&dsp, samples, n, heights);
+        const double *samples_l = NULL, *samples_r = NULL;
+        size_t n = audio_consume(&audio, &samples_l, &samples_r);
+        if (n > 0) {
+            dsp_execute(&dsp[0], samples_l, n, heights[0]);
+            if (cfg.channels > 1 && samples_r)
+                dsp_execute(&dsp[1], samples_r, n, heights[1]);
+        }
         if (audio_failed(&audio)) {
             fprintf(stderr, "\nSharkVis: audio input failed: %s\n", audio_error(&audio));
             rc = 1;
             break;
         }
 
+        per_ch = per_ch_bars(bars, cfg.channels);
         double sens = cfg.sensitivity / 100.0;
-        for (size_t i = 0; i < bars; i++)
-            heights[i] *= sens;
+        for (size_t i = 0; i < per_ch; i++)
+            heights[0][i] *= sens;
+        if (cfg.channels > 1)
+            for (size_t i = 0; i < per_ch; i++)
+                heights[1][i] *= sens;
 
         size_t olen = 0;
         if (in_settings)
             settings_draw(st, &cfg, out, &olen, (size_t)1 << 20, rows,
                           panel_width_for(cols));
-        renderer_draw(&rnd, heights, out, &olen, (size_t)1 << 20);
+        if (cfg.channels > 1)
+            renderer_draw_stereo(&rnd, heights[0], heights[1], per_ch, out,
+                                 &olen, (size_t)1 << 20);
+        else
+            renderer_draw(&rnd, heights[0], out, &olen, (size_t)1 << 20);
         if (olen) {
             fwrite(out, 1, olen, stdout);
             fflush(stdout);
@@ -300,9 +336,11 @@ int main(int argc, char **argv) {
 
     audio_stop(&audio);
     renderer_free(&rnd);
-    dsp_free(&dsp);
+    for (int ch = 0; ch < 2; ch++)
+        dsp_free(&dsp[ch]);
     settings_free(st);
-    free(heights);
+    free(heights[0]);
+    free(heights[1]);
     free(out);
     free(save_path);
     config_free(&cfg);
