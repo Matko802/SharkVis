@@ -135,9 +135,13 @@ void renderer_set_wave(renderer_t *r, unsigned sample_rate) {
     size_t lj_spc = sample_rate / 800;
     if (lj_spc < 1)
         lj_spc = 1;
+    size_t lj_win = sample_rate / 20;
+    if (lj_win < 256)
+        lj_win = 256;
     if (r->wave_buf && r->wave_cap == cap) {
         r->wave_spc = spc;
         r->lj_spc = lj_spc;
+        r->lj_win = lj_win;
         return;
     }
     free(r->wave_buf);
@@ -154,6 +158,7 @@ void renderer_set_wave(renderer_t *r, unsigned sample_rate) {
     r->lj_pos = 0;
     r->lj_filled = 0;
     r->lj_spc = lj_spc;
+    r->lj_win = lj_win;
 }
 
 void renderer_feed(renderer_t *r, const double *left, const double *right,
@@ -379,10 +384,12 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
     unsigned rows = r->rows;
     size_t cols = r->cols;
 
+    memset(r->lj_glow, 0, (size_t)rows * cols);
+
     size_t i;
     size_t n = r->lj_filled;
-    if (n > r->lj_cap)
-        n = r->lj_cap;
+    if (n > r->lj_win)
+        n = r->lj_win;
     if (n > 1) {
         size_t delay = r->lj_spc ? r->lj_spc : 1;
         double cx = x_start + (region_w - 1) * 0.5;

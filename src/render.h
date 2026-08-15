@@ -34,6 +34,7 @@ typedef struct {
     size_t lj_pos;
     size_t lj_filled;
     size_t lj_spc;
+    size_t lj_win;
     bool stereo_in;
     unsigned char *lj_glow;
 } renderer_t;
