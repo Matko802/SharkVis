@@ -242,7 +242,8 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
         }
         d->prev_cava_out[n] = cava_out[n];
 
-        cava_out[n] = d->cava_mem[n] * d->noise_reduction + cava_out[n];
+        cava_out[n] = d->cava_mem[n] * d->noise_reduction +
+                      cava_out[n] * (1.0 - d->noise_reduction);
         d->cava_mem[n] = cava_out[n];
 
         if (d->autosens) {
