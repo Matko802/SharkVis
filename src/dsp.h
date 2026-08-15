@@ -18,38 +18,30 @@ typedef struct {
     size_t frame_skip;
     double noise_reduction;
 
-    size_t fft_bass_size;
     size_t fft_size;
     size_t input_buffer_size;
-    size_t max_bass_bin;
-    size_t max_main_bin;
+    size_t max_bin;
 
     uint64_t last_fft_ns;
     uint64_t fft_interval_ns;
     unsigned sens_step;
+    bool any_signal;
 
     double *input_buffer;
     size_t *lower_cut_off;
     size_t *upper_cut_off;
     double *eq;
-    size_t bass_cut_off_bar;
 
     double *cava_fall;
     double *cava_mem;
     double *cava_peak;
     double *prev_cava_out;
 
-    double *bass_multiplier;
     double *multiplier;
 
-    fft_t bass_fft;
     fft_t fft;
 
-    double *in_bass_raw;
-    double *in_bass;
-    double *in_raw;
     double *in_;
-    double *out_bass_mag;
     double *out_mag;
 } dsp_t;
 

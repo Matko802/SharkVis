@@ -1,6 +1,5 @@
 #include "render.h"
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,20 +16,20 @@ static const char *const GLYPHS[9] = {
     "\xe2\x96\x88", /* █ */
 };
 
-static void write_esc(char *out, size_t *olen, size_t cap, const char *fmt, ...) {
-    if (*olen >= cap)
-        return;
-    size_t room = cap - *olen;
-    va_list ap;
-    va_start(ap, fmt);
-    int n = vsnprintf(out + *olen, room, fmt, ap);
-    va_end(ap);
-    if (n < 0)
-        return;
-    if ((size_t)n < room)
-        *olen += (size_t)n;
-    else
-        *olen = cap;
+static void app(char *out, size_t *olen, size_t cap, const char *s) {
+    while (*s && *olen < cap)
+        out[(*olen)++] = *s++;
+}
+
+static void appu(char *out, size_t *olen, size_t cap, unsigned v) {
+    char buf[12];
+    size_t n = 0;
+    do {
+        buf[n++] = (char)('0' + v % 10);
+        v /= 10;
+    } while (v);
+    while (n && *olen < cap)
+        out[(*olen)++] = buf[--n];
 }
 
 static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
@@ -50,7 +49,36 @@ static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
         if (cg > 255) cg = 255;
         if (cb > 255) cb = 255;
     }
-    snprintf(buf, n, "\x1b[38;2;%u;%u;%um", cr, cg, cb);
+    size_t o = 0;
+    const char *pre = "\x1b[38;2;";
+    while (*pre && o + 1 < n)
+        buf[o++] = *pre++;
+    char t[12];
+    size_t len = 0;
+    do {
+        t[len++] = (char)('0' + cr % 10);
+        cr /= 10;
+    } while (cr);
+    while (len && o + 1 < n)
+        buf[o++] = t[--len];
+    buf[o++] = ';';
+    len = 0;
+    do {
+        t[len++] = (char)('0' + cg % 10);
+        cg /= 10;
+    } while (cg);
+    while (len && o + 1 < n)
+        buf[o++] = t[--len];
+    buf[o++] = ';';
+    len = 0;
+    do {
+        t[len++] = (char)('0' + cb % 10);
+        cb /= 10;
+    } while (cb);
+    while (len && o + 1 < n)
+        buf[o++] = t[--len];
+    buf[o++] = 'm';
+    buf[o] = '\0';
 }
 
 typedef struct {
@@ -64,13 +92,17 @@ static void emit_color(const renderer_t *r, unsigned from_bottom, color_state *s
     bar_color(r, from_bottom, r->rows, buf, sizeof buf);
     if (st->active && strcmp(st->col, buf) == 0)
         return;
-    write_esc(out, out_len, cap, "%s", buf);
+    app(out, out_len, cap, buf);
     snprintf(st->col, sizeof st->col, "%s", buf);
     st->active = true;
 }
 
 static void seek_cell(long r, long c, char *out, size_t *out_len, size_t cap) {
-    write_esc(out, out_len, cap, "\x1b[%ld;%ldH", r + 1, c + 1);
+    app(out, out_len, cap, "\x1b[");
+    appu(out, out_len, cap, (unsigned)(r + 1));
+    app(out, out_len, cap, ";");
+    appu(out, out_len, cap, (unsigned)(c + 1));
+    app(out, out_len, cap, "H");
 }
 
 static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *st,
@@ -81,10 +113,10 @@ static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *
     r->prev[idx] = (unsigned char)gi;
     seek_cell((long)y, (long)x, out, out_len, cap);
     if (gi == 0) {
-        write_esc(out, out_len, cap, " ");
+        app(out, out_len, cap, " ");
     } else {
         emit_color(r, r->rows - 1 - y, st, out, out_len, cap);
-        write_esc(out, out_len, cap, "%s", GLYPHS[gi]);
+        app(out, out_len, cap, GLYPHS[gi]);
     }
 }
 
@@ -198,6 +230,8 @@ void renderer_set_wave(renderer_t *r, unsigned sample_rate) {
 
 void renderer_feed(renderer_t *r, const double *left, const double *right,
                    size_t n) {
+    if (r->mode != RENDER_WAVE && r->mode != RENDER_LISSAJOUS)
+        return;
     if (!r->wave_buf || r->wave_cap == 0 || n == 0)
         return;
     r->stereo_in = right != NULL;

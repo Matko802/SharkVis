@@ -5,10 +5,11 @@
 
 typedef struct {
     size_t n;
-    size_t bits;
     size_t *rev;
     double *cos;
     double *sin;
+    double *ccos;
+    double *csin;
     double *re;
     double *im;
 } fft_t;
