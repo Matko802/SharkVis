@@ -1,4 +1,4 @@
-# SharkVis
+# sharkvis
 
 Linux only audio visualizer made in C 
 
