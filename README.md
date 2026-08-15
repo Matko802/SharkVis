@@ -42,7 +42,8 @@ Keys:
 | `q` / `Ctrl-C`    | quit                            |
 
 The config file is looked up in `$SHARKVIS_CONFIG`, then
-`~/.config/SharkVis/config`, then `./config`. Example:
+`~/.config/SharkVis/config`, then `./config`. Settings changed in the panel
+are saved automatically when you close the panel or quit. Example:
 
 ```ini
 [general]

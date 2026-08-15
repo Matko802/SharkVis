@@ -23,6 +23,8 @@ typedef struct {
 void config_default(srk_config *c);
 /* returns false if the file could not be read; defaults kept otherwise */
 bool config_load(srk_config *c, const char *path);
+/* writes all settings to path (creating parent dirs); false on failure */
+bool config_save(const srk_config *c, const char *path);
 char *config_default_path(void);
 void config_free(srk_config *c);
 

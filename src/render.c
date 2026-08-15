@@ -59,6 +59,11 @@ void renderer_set_offset(renderer_t *r, size_t x_off) {
     memset(r->prev, 0xFF, (size_t)r->rows * r->cols);
 }
 
+void renderer_clear(renderer_t *r) {
+    if (r->prev)
+        memset(r->prev, 0xFF, (size_t)r->rows * r->cols);
+}
+
 void renderer_free(renderer_t *r) {
     free(r->prev);
     r->prev = NULL;

@@ -76,6 +76,7 @@ static void apply_settings(dsp_t *dsp, renderer_t *rnd, audio_t *audio,
     rnd->bar_spacing = cfg->bar_spacing;
     rnd->gradient = cfg->gradient;
     renderer_set_offset(rnd, x_off);
+    renderer_clear(rnd);
 
     if (audio_reinit) {
         audio_stop(audio);
@@ -102,21 +103,21 @@ int main(int argc, char **argv) {
     srk_config cfg;
     config_default(&cfg);
 
-    char *path = NULL;
+    char *save_path = NULL;
     if (cfgpath) {
-        path = strdup(cfgpath);
-        if (!config_load(&cfg, path)) {
-            fprintf(stderr, "SharkVis: error loading config %s\n", path);
-            free(path);
+        save_path = strdup(cfgpath);
+        if (!config_load(&cfg, save_path)) {
+            fprintf(stderr, "SharkVis: error loading config %s\n", save_path);
+            free(save_path);
             config_free(&cfg);
             return 1;
         }
     } else {
-        path = config_default_path();
-        if (access(path, F_OK) == 0 && !config_load(&cfg, path))
-            fprintf(stderr, "SharkVis: error loading config %s, using defaults\n", path);
+        save_path = config_default_path();
+        if (access(save_path, F_OK) == 0 && !config_load(&cfg, save_path))
+            fprintf(stderr, "SharkVis: error loading config %s, using defaults\n",
+                    save_path);
     }
-    free(path);
 
     if (cfg.bar_width < 1)
         cfg.bar_width = 1;
@@ -183,6 +184,7 @@ int main(int argc, char **argv) {
 
     settings_ui *st = settings_new();
     bool in_settings = false;
+    bool clear_render = false;
     unsigned chmask = 0;
 
     struct timespec next;
@@ -200,6 +202,9 @@ int main(int argc, char **argv) {
                 apply_settings(&dsp, &rnd, &audio, &cfg, &bars, &heights, rows,
                                cols, chmask, !!(chmask & CH_AUDIO), 0);
                 chmask = 0;
+                if (!config_save(&cfg, save_path))
+                    fprintf(stderr, "SharkVis: could not save config to %s\n",
+                            save_path);
             } else if (key == 'q' || key == 'Q' || key == 3) {
                 break;
             } else {
@@ -208,6 +213,7 @@ int main(int argc, char **argv) {
                     apply_settings(&dsp, &rnd, &audio, &cfg, &bars, &heights,
                                    rows, cols, chmask, !!(chmask & CH_AUDIO),
                                    (size_t)panel_width_for(cols));
+                    clear_render = true;
                     chmask = 0;
                 }
             }
@@ -268,6 +274,11 @@ int main(int argc, char **argv) {
             heights[i] *= sens;
 
         size_t olen = 0;
+        if (clear_render) {
+            memcpy(out, "\x1b[2J\x1b[H", 7);
+            olen = 7;
+            clear_render = false;
+        }
         if (in_settings)
             settings_draw(st, &cfg, out, &olen, (size_t)1 << 20, rows,
                           panel_width_for(cols));
@@ -284,6 +295,9 @@ int main(int argc, char **argv) {
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, NULL);
     }
 
+    if (!config_save(&cfg, save_path))
+        fprintf(stderr, "SharkVis: could not save config to %s\n", save_path);
+
     printf("\x1b[?25h\x1b[0m\x1b[J");
     fflush(stdout);
     term_raw_restore(0);
@@ -294,6 +308,7 @@ int main(int argc, char **argv) {
     settings_free(st);
     free(heights);
     free(out);
+    free(save_path);
     config_free(&cfg);
     return rc;
 }

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static char *trim(char *s) {
@@ -76,6 +77,55 @@ char *config_default_path(void) {
 
 void config_free(srk_config *c) {
     free(c->source);
+}
+
+static void mkdir_p(const char *path) {
+    char tmp[1024];
+    snprintf(tmp, sizeof tmp, "%s", path);
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(tmp, 0755);
+            *p = '/';
+        }
+    }
+    mkdir(tmp, 0755);
+}
+
+bool config_save(const srk_config *c, const char *path) {
+    char dir[1024];
+    snprintf(dir, sizeof dir, "%s", path);
+    char *slash = strrchr(dir, '/');
+    if (slash) {
+        *slash = '\0';
+        if (dir[0])
+            mkdir_p(dir);
+    }
+
+    FILE *f = fopen(path, "w");
+    if (!f)
+        return false;
+
+    fprintf(f, "[general]\n");
+    fprintf(f, "bars = %zu\n", c->bars);
+    fprintf(f, "bar_width = %zu\n", c->bar_width);
+    fprintf(f, "bar_spacing = %zu\n", c->bar_spacing);
+    fprintf(f, "framerate = %u\n", c->framerate);
+    fprintf(f, "sensitivity = %.0f\n", c->sensitivity);
+    fprintf(f, "autosens = %d\n", c->autosens ? 1 : 0);
+    fprintf(f, "lower_cutoff_freq = %u\n", c->lower_cutoff);
+    fprintf(f, "higher_cutoff_freq = %u\n", c->higher_cutoff);
+    fprintf(f, "\n[smoothing]\n");
+    fprintf(f, "noise_reduction = %.2f\n", c->noise_reduction);
+    fprintf(f, "\n[input]\n");
+    fprintf(f, "method = pulse\n");
+    fprintf(f, "source = %s\n", c->source ? c->source : "auto");
+    fprintf(f, "sample_rate = %u\n", c->sample_rate);
+    fprintf(f, "channels = %u\n", c->channels);
+    fprintf(f, "\n[color]\n");
+    fprintf(f, "gradient = %d\n", c->gradient ? 1 : 0);
+
+    return fclose(f) == 0;
 }
 
 bool config_load(srk_config *c, const char *path) {
