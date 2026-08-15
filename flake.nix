@@ -1,5 +1,5 @@
 {
-  description = "SharkVis - terminal audio spectrum analyzer";
+  description = "sharkvis - terminal audio spectrum analyzer";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -23,7 +23,7 @@
           meta = {
             mainProgram = "sharkvis";
             description = "Terminal audio spectrum analyzer";
-            homepage = "https://github.com/Matko802/SharkVis";
+            homepage = "https://github.com/Matko802/sharkvis";
             license = pkgs.lib.licenses.mit;
             platforms = pkgs.lib.platforms.linux;
           };

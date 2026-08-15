@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
             print_version();
             return 0;
         } else {
-            fprintf(stderr, "SharkVis: unknown option '%s'\n", argv[i]);
+            fprintf(stderr, "sharkvis: unknown option '%s'\n", argv[i]);
             usage();
             return 1;
         }
@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
     if (cfgpath) {
         save_path = strdup(cfgpath);
         if (!config_load(&cfg, save_path)) {
-            fprintf(stderr, "SharkVis: error loading config %s\n", save_path);
+            fprintf(stderr, "sharkvis: error loading config %s\n", save_path);
             free(save_path);
             config_free(&cfg);
             return 1;
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
     } else {
         save_path = config_default_path();
         if (access(save_path, F_OK) == 0 && !config_load(&cfg, save_path))
-            fprintf(stderr, "SharkVis: error loading config %s, using defaults\n",
+            fprintf(stderr, "sharkvis: error loading config %s, using defaults\n",
                     save_path);
     }
 
@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
     audio_start(&audio, cfg.source, cfg.sample_rate, cfg.channels);
 
     if (!term_raw_enter(0)) {
-        fprintf(stderr, "SharkVis: not a terminal\n");
+        fprintf(stderr, "sharkvis: not a terminal\n");
         audio_stop(&audio);
         for (int ch = 0; ch < 2; ch++)
             dsp_free(&dsp[ch]);
@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
                 chmask = 0;
                 force_draw = true;
                 if (!config_save(&cfg, save_path))
-                    fprintf(stderr, "SharkVis: could not save config to %s\n",
+                    fprintf(stderr, "sharkvis: could not save config to %s\n",
                             save_path);
             } else if (key == 'q' || key == 'Q' || key == 3) {
                 break;
@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
                 dsp_execute(&dsp[1], samples_r, n, heights[1]);
         }
         if (audio_failed(&audio)) {
-            fprintf(stderr, "\nSharkVis: audio input failed: %s\n", audio_error(&audio));
+            fprintf(stderr, "\nsharkvis: audio input failed: %s\n", audio_error(&audio));
             rc = 1;
             break;
         }
@@ -428,7 +428,7 @@ int main(int argc, char **argv) {
     }
 
     if (!config_save(&cfg, save_path))
-        fprintf(stderr, "SharkVis: could not save config to %s\n", save_path);
+        fprintf(stderr, "sharkvis: could not save config to %s\n", save_path);
 
     printf("\x1b[?25h\x1b[0m\x1b[2J\x1b[H");
     fflush(stdout);

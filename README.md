@@ -17,8 +17,8 @@ Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https:
 `make` required for building
 
 ```sh
-git clone https://github.com/Matko802/SharkVis.git
-cd SharkVis
+git clone https://github.com/Matko802/sharkvis.git
+cd sharkvis
 make deps      
 make           
 sudo make install
@@ -27,7 +27,7 @@ sudo make install
 Prefer not to touch your system? On NixOS or any distro with Nix installed:
 
 ```sh
-nix run github:Matko802/SharkVis
+nix run github:Matko802/sharkvis
 ```
 
 To install somewhere else instead of `/usr/local`:
@@ -58,12 +58,12 @@ Keys:
 | `q` / `Ctrl-C`    | quit                            |
 
 The config file is looked up in `$SHARKVIS_CONFIG`, then
-`~/.config/SharkVis/config`, then `./config`. Settings changed in the panel
+`~/.config/sharkvis/config`, then `./config`. Settings changed in the panel
 are saved automatically when you close the panel or quit.
 
 ## Nix flakes
 
-SharkVis ships with its own flake, so you can pull it straight from GitHub.
+sharkvis ships with its own flake, so you can pull it straight from GitHub.
 
 ### As a flake input
 
@@ -72,7 +72,7 @@ SharkVis ships with its own flake, so you can pull it straight from GitHub.
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     sharkvis = {
-      url = "github:Matko802/SharkVis";
+      url = "github:Matko802/sharkvis";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -95,7 +95,7 @@ A full NixOS example that pulls the flake in as both an overlay and a package:
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     sharkvis = {
-      url = "github:Matko802/SharkVis";
+      url = "github:Matko802/sharkvis";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -122,14 +122,14 @@ A full NixOS example that pulls the flake in as both an overlay and a package:
 ### Standalone build from source
 
 ```sh
-nix build github:Matko802/SharkVis
-nix run github:Matko802/SharkVis
+nix build github:Matko802/sharkvis
+nix run github:Matko802/sharkvis
 ```
 
 ### Development
 
 ```sh
-nix develop github:Matko802/SharkVis  
+nix develop github:Matko802/sharkvis  
 ```
 
 ## License

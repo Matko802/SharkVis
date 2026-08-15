@@ -390,7 +390,7 @@ void settings_draw(settings_ui *s, const srk_config *cfg, char *out,
     if (s->confirm_reset && now_ms() > s->confirm_deadline_ms)
         s->confirm_reset = false;
     size_t n = *out_len;
-    panel_row(out, &n, cap, 1, panel_width, "SharkVis settings", NULL, NULL);
+    panel_row(out, &n, cap, 1, panel_width, "sharkvis settings", NULL, NULL);
     panel_row(out, &n, cap, 2, panel_width, "←, ↑, ↓, → = adjust", NULL, NULL);
     panel_row(out, &n, cap, 3, panel_width, "g = close, q = quit", NULL, NULL);
     unsigned y = 6;

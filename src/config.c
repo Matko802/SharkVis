@@ -142,7 +142,7 @@ char *config_default_path(void) {
     if (home) {
         size_t n = strlen(home);
         char *p = malloc(n + 25);
-        snprintf(p, n + 25, "%s/.config/SharkVis/config", home);
+        snprintf(p, n + 25, "%s/.config/sharkvis/config", home);
         if (access(p, F_OK) == 0)
             return p;
         free(p);
@@ -152,7 +152,7 @@ char *config_default_path(void) {
     if (home) {
         size_t n = strlen(home);
         char *p = malloc(n + 25);
-        snprintf(p, n + 25, "%s/.config/SharkVis/config", home);
+        snprintf(p, n + 25, "%s/.config/sharkvis/config", home);
         return p;
     }
     return strdup("config");
@@ -277,7 +277,7 @@ bool config_load(srk_config *c, const char *path) {
             if (strcmp(key, "method") == 0) {
                 if (*val && strcmp(val, "pulse") != 0 && strcmp(val, "pipewire") != 0 &&
                     strcmp(val, "auto") != 0)
-                    fprintf(stderr, "SharkVis: input method '%s' not supported, using pulse\n",
+                    fprintf(stderr, "sharkvis: input method '%s' not supported, using pulse\n",
                             val);
             } else if (strcmp(key, "source") == 0) {
                 free(c->source);

@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *PA_APP = "SharkVis";
-static const char *PA_STREAM = "SharkVis spectrum";
+static const char *PA_APP = "sharkvis";
+static const char *PA_STREAM = "sharkvis spectrum";
 
 typedef struct {
     char name[512];
