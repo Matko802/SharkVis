@@ -9,7 +9,7 @@ PREFIX ?= /usr/local
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
-BIN := SharkVis
+BIN := sharkvis
 
 all: $(BIN)
 

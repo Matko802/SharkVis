@@ -14,14 +14,14 @@
       sharkvis =
         { pkgs }:
         pkgs.stdenv.mkDerivation {
-          pname = "SharkVis";
+          pname = "sharkvis";
           version = "0.1.0";
           src = ./.;
           nativeBuildInputs = [ pkgs.pkg-config ];
           buildInputs = [ pkgs.libpulseaudio ];
           makeFlags = [ "PREFIX=$(out)" ];
           meta = {
-            mainProgram = "SharkVis";
+            mainProgram = "sharkvis";
             description = "Terminal audio spectrum analyzer";
             homepage = "https://github.com/Matko802/SharkVis";
             platforms = pkgs.lib.platforms.linux;
@@ -29,13 +29,13 @@
         };
 
       overlay = final: _prev: {
-        SharkVis = sharkvis { pkgs = final; };
+        sharkvis = sharkvis { pkgs = final; };
       };
     in
     {
       packages = forAllSystems (pkgs: {
         default = sharkvis { inherit pkgs; };
-        SharkVis = sharkvis { inherit pkgs; };
+        sharkvis = sharkvis { inherit pkgs; };
       });
 
       overlays.default = overlay;

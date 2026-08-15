@@ -92,7 +92,7 @@ SharkVis ships with its own flake, so you can pull it straight from GitHub.
 ### As an overlay
 
 The flake also exposes `overlays.default`, so you can enable it with
-`nixpkgs.overlays = [ sharkvis.overlays.default ];` and get `pkgs.SharkVis`.
+`nixpkgs.overlays = [ sharkvis.overlays.default ];` and get `pkgs.sharkvis`.
 
 A full NixOS example that pulls the flake in as both an overlay and a package:
 

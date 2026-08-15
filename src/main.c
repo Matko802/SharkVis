@@ -26,7 +26,7 @@ static void on_winch(int sig) {
 }
 
 static void usage(void) {
-    printf("usage: SharkVis [-p config_file]\n");
+    printf("usage: sharkvis [-p config_file]\n");
     printf("  g - settings, q - quit\n");
 }
 
