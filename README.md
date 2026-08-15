@@ -18,9 +18,8 @@ development headers (`libpulse-simple`).
 
 ```sh
 make
-sudo make install   # installs to /usr/local/bin/SHRKVis
+sudo make install   
 ```
-
 You can also override the prefix:
 
 ```sh
