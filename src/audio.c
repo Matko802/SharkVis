@@ -80,6 +80,13 @@ static char *default_sink_monitor(void) {
     return q.name[0] ? strdup(q.name) : NULL;
 }
 
+static size_t next_pow2(size_t v) {
+    size_t p = 1;
+    while (p < v)
+        p <<= 1;
+    return p;
+}
+
 static void *capture_thread(void *arg) {
     audio_t *a = arg;
 
@@ -119,6 +126,7 @@ static void *capture_thread(void *arg) {
     size_t frames = 512;
     size_t chunk = frames * ss.channels * sizeof(int16_t);
     int16_t *raw = malloc(chunk);
+    unsigned nch = ss.channels;
 
     while (!a->terminate) {
         if (pa_simple_read(s, raw, chunk, &error) < 0) {
@@ -127,16 +135,18 @@ static void *capture_thread(void *arg) {
             a->terminate = true;
             break;
         }
-        pthread_mutex_lock(&a->lock);
         for (size_t f = 0; f < frames; f++) {
-            if (a->count >= a->capacity)
-                break;
-            for (unsigned ch = 0; ch < ss.channels; ch++)
-                a->buf[ch][a->count] =
-                    (double)raw[f * ss.channels + ch] / 32768.0;
-            a->count++;
+            size_t head = atomic_load_explicit(&a->head, memory_order_relaxed);
+            size_t tail = atomic_load_explicit(&a->tail, memory_order_acquire);
+            if (head - tail >= a->capacity)
+                continue; /* ring full: drop newest, never block capture */
+            size_t i = head & a->mask;
+            for (unsigned ch = 0; ch < nch; ch++)
+                a->ring[ch][i] = (double)raw[f * nch + ch] / 32768.0;
+            if (nch == 1)
+                a->ring[1][i] = a->ring[0][i];
+            atomic_store_explicit(&a->head, head + 1, memory_order_release);
         }
-        pthread_mutex_unlock(&a->lock);
     }
 
     free(raw);
@@ -146,12 +156,14 @@ static void *capture_thread(void *arg) {
 
 void audio_init(audio_t *a, size_t capacity) {
     memset(a, 0, sizeof *a);
-    pthread_mutex_init(&a->lock, NULL);
-    a->capacity = capacity;
-    a->buf[0] = calloc(capacity, sizeof *a->buf[0]);
-    a->buf[1] = calloc(capacity, sizeof *a->buf[1]);
-    a->work[0] = calloc(capacity, sizeof *a->work[0]);
-    a->work[1] = calloc(capacity, sizeof *a->work[1]);
+    atomic_init(&a->head, 0);
+    atomic_init(&a->tail, 0);
+    a->capacity = next_pow2(capacity);
+    a->mask = a->capacity - 1;
+    a->ring[0] = calloc(a->capacity, sizeof *a->ring[0]);
+    a->ring[1] = calloc(a->capacity, sizeof *a->ring[1]);
+    a->work[0] = calloc(a->capacity, sizeof *a->work[0]);
+    a->work[1] = calloc(a->capacity, sizeof *a->work[1]);
 }
 
 void audio_start(audio_t *a, const char *source, unsigned rate, unsigned channels) {
@@ -164,16 +176,26 @@ void audio_start(audio_t *a, const char *source, unsigned rate, unsigned channel
 }
 
 size_t audio_consume(audio_t *a, const double **left, const double **right) {
-    pthread_mutex_lock(&a->lock);
-    size_t n = a->count;
+    size_t head = atomic_load_explicit(&a->head, memory_order_acquire);
+    size_t tail = atomic_load_explicit(&a->tail, memory_order_relaxed);
+    size_t n = head - tail;
+    if (n > a->capacity)
+        n = a->capacity;
     if (n > 0) {
-        memcpy(a->work[0], a->buf[0], n * sizeof *a->work[0]);
-        memcpy(a->work[1], a->buf[1], n * sizeof *a->work[1]);
+        for (unsigned ch = 0; ch < 2; ch++) {
+            size_t t = tail & a->mask;
+            size_t part = n;
+            if (t + part > a->capacity)
+                part = a->capacity - t;
+            memcpy(a->work[ch], a->ring[ch] + t, part * sizeof *a->work[ch]);
+            if (part < n)
+                memcpy(a->work[ch] + part, a->ring[ch],
+                       (n - part) * sizeof *a->work[ch]);
+        }
+        atomic_store_explicit(&a->tail, tail + n, memory_order_release);
     }
-    a->count = 0;
     *left = a->work[0];
     *right = (a->channels > 1) ? a->work[1] : NULL;
-    pthread_mutex_unlock(&a->lock);
     return n;
 }
 
@@ -188,13 +210,12 @@ const char *audio_error(audio_t *a) {
 void audio_stop(audio_t *a) {
     a->terminate = true;
     pthread_join(a->thread, NULL);
-    pthread_mutex_destroy(&a->lock);
-    free(a->buf[0]);
-    free(a->buf[1]);
+    free(a->ring[0]);
+    free(a->ring[1]);
     free(a->work[0]);
     free(a->work[1]);
-    a->buf[0] = NULL;
-    a->buf[1] = NULL;
+    a->ring[0] = NULL;
+    a->ring[1] = NULL;
     a->work[0] = NULL;
     a->work[1] = NULL;
 }

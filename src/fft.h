@@ -15,6 +15,6 @@ typedef struct {
 
 void fft_init(fft_t *fft, size_t n);
 void fft_free(fft_t *fft);
-void fft_process(fft_t *fft, const double *input, double *out_mag);
+void fft_process(fft_t *fft, const double *input, double *out_mag, size_t max_bin);
 
 #endif

@@ -2,15 +2,17 @@
 #define SHARK_AUDIO_H
 
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
 
 typedef struct {
-    pthread_mutex_t lock;
-    double *buf[2];
+    _Atomic size_t head;
+    _Atomic size_t tail;
+    double *ring[2];
     double *work[2];
     size_t capacity;
-    size_t count;
+    size_t mask;
     volatile bool terminate;
     char error[256];
     pthread_t thread;

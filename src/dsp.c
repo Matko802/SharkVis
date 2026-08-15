@@ -3,10 +3,17 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+static uint64_t now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+}
 
 static size_t pick_fft_size(unsigned rate) {
     size_t s = 512;
@@ -23,6 +30,8 @@ static size_t pick_fft_size(unsigned rate) {
     } else if (rate > 300000) {
         s *= 64;
     }
+    if (s > 2048)
+        s = 2048;
     return s;
 }
 
@@ -34,12 +43,25 @@ void dsp_init(dsp_t *d, size_t number_of_bars, unsigned rate, bool autosens,
     d->noise_reduction = noise_reduction;
     d->sens = 100.0;
     d->sens_init = true;
+    d->sens_scale = 1.0;
     d->framerate = 75.0;
     d->frame_skip = 1;
+    d->sens_step = 0;
 
     d->fft_size = pick_fft_size(rate);
     d->fft_bass_size = d->fft_size * 2;
     d->input_buffer_size = d->fft_bass_size;
+    d->last_fft_ns = 0;
+    d->fft_interval_ns = 1000000000ull / 60;
+
+    d->max_bass_bin =
+        (size_t)ceil((double)high_cut_off / (double)rate * (double)d->fft_bass_size);
+    if (d->max_bass_bin > d->fft_bass_size / 2)
+        d->max_bass_bin = d->fft_bass_size / 2;
+    d->max_main_bin =
+        (size_t)ceil((double)high_cut_off / (double)rate * (double)d->fft_size);
+    if (d->max_main_bin > d->fft_size / 2)
+        d->max_main_bin = d->fft_size / 2;
 
     double lower_lo = (double)low_cut_off;
     double upper_hi = (double)high_cut_off;
@@ -179,7 +201,6 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
     size_t new_samples = new_samples_in < d->input_buffer_size
         ? new_samples_in
         : d->input_buffer_size;
-    bool silence = true;
 
     if (new_samples > 0) {
         d->framerate -= d->framerate / 64.0;
@@ -192,12 +213,14 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
         for (size_t n = 0; n < new_samples; n++) {
             double v = cava_in[n];
             d->input_buffer[new_samples - n - 1] = v;
-            if (v != 0.0)
-                silence = false;
         }
     } else {
         d->frame_skip++;
     }
+
+    if (now_ns() - d->last_fft_ns < d->fft_interval_ns)
+        return;
+    d->last_fft_ns = now_ns();
 
     for (size_t n = 0; n < d->fft_bass_size; n++)
         d->in_bass_raw[n] = d->input_buffer[n];
@@ -207,8 +230,8 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
         d->in_bass[i] = d->bass_multiplier[i] * d->in_bass_raw[i];
     for (size_t i = 0; i < d->fft_size; i++)
         d->in_[i] = d->multiplier[i] * d->in_raw[i];
-    fft_process(&d->bass_fft, d->in_bass, d->out_bass_mag);
-    fft_process(&d->fft, d->in_, d->out_mag);
+    fft_process(&d->bass_fft, d->in_bass, d->out_bass_mag, d->max_bass_bin);
+    fft_process(&d->fft, d->in_, d->out_mag, d->max_main_bin);
 
     for (size_t n = 0; n < d->number_of_bars; n++) {
         double temp = 0.0;
@@ -254,7 +277,15 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
         }
     }
 
-    if (d->autosens) {
+    if (d->autosens && ++d->sens_step >= 3) {
+        d->sens_step = 0;
+        bool silence = true;
+        for (size_t n = 0; n < new_samples; n++) {
+            if (cava_in[n] != 0.0) {
+                silence = false;
+                break;
+            }
+        }
         if (overshoot) {
             d->sens *= 0.98;
             d->sens_init = false;
@@ -263,5 +294,10 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
             if (d->sens_init)
                 d->sens *= 2.0;
         }
+    }
+
+    if (d->sens_scale != 1.0) {
+        for (size_t n = 0; n < d->number_of_bars; n++)
+            cava_out[n] *= d->sens_scale;
     }
 }

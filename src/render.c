@@ -161,7 +161,7 @@ render_mode renderer_mode_parse(const char *name) {
 }
 
 void renderer_set_wave(renderer_t *r, unsigned sample_rate) {
-    size_t cap = sample_rate ? (size_t)sample_rate : 48000;
+    size_t cap = sample_rate ? (size_t)sample_rate * 2 / 3 : 48000 * 2 / 3;
     if (cap < 4096)
         cap = 4096;
     size_t spc = sample_rate / 2000;

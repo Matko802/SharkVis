@@ -12,6 +12,8 @@
 #include "settings.h"
 #include "term.h"
 
+#define VIS_EPS 0.01
+
 static volatile sig_atomic_t g_sig = 0;
 static volatile sig_atomic_t g_resize = 0;
 
@@ -82,8 +84,8 @@ static void apply_colors(renderer_t *rnd, const srk_config *cfg) {
 
 static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
                            srk_config *cfg, size_t *bars, double *heights[2],
-                           unsigned rows, unsigned cols, unsigned chmask,
-                           bool audio_reinit, size_t x_off) {
+                           double *last_h[2], unsigned rows, unsigned cols,
+                           unsigned chmask, bool audio_reinit, size_t x_off) {
     size_t new_bars = bar_count_for(cols, cfg);
     size_t pcl = per_ch_left(new_bars, cfg->channels);
     size_t pcr = per_ch_right(new_bars, cfg->channels);
@@ -104,8 +106,12 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
     if (new_bars != *bars) {
         free(heights[0]);
         free(heights[1]);
+        free(last_h[0]);
+        free(last_h[1]);
         heights[0] = calloc(new_bars, sizeof **heights);
         heights[1] = calloc(new_bars, sizeof **heights);
+        last_h[0] = calloc(new_bars, sizeof **last_h);
+        last_h[1] = calloc(new_bars, sizeof **last_h);
         *bars = new_bars;
         renderer_resize(rnd, rows, cols, new_bars);
     }
@@ -242,12 +248,16 @@ int main(int argc, char **argv) {
     renderer_set_wave(&rnd, cfg.sample_rate);
 
     double *heights[2];
+    double *last_h[2];
     heights[0] = malloc(bars * sizeof *heights[0]);
     heights[1] = malloc(bars * sizeof *heights[1]);
+    last_h[0] = malloc(bars * sizeof *last_h[0]);
+    last_h[1] = malloc(bars * sizeof *last_h[1]);
     char *out = malloc((size_t)1 << 20);
 
     settings_ui *st = settings_new();
     bool in_settings = false;
+    bool force_draw = true;
     unsigned chmask = 0;
 
     struct timespec next;
@@ -262,9 +272,10 @@ int main(int argc, char **argv) {
                 in_settings = false;
                 printf("\x1b[2J\x1b[H");
                 fflush(stdout);
-                apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights, rows,
-                               cols, chmask, !!(chmask & CH_AUDIO), 0);
+                apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights, last_h,
+                               rows, cols, chmask, !!(chmask & CH_AUDIO), 0);
                 chmask = 0;
+                force_draw = true;
                 if (!config_save(&cfg, save_path))
                     fprintf(stderr, "SharkVis: could not save config to %s\n",
                             save_path);
@@ -274,11 +285,13 @@ int main(int argc, char **argv) {
                 settings_key(st, &cfg, key, &chmask);
                 if (chmask) {
                     apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,
-                                   rows, cols, chmask, !!(chmask & CH_AUDIO),
+                                   last_h, rows, cols, chmask,
+                                   !!(chmask & CH_AUDIO),
                                    (size_t)panel_width_for(cols));
                     printf("\x1b[2J\x1b[H");
                     fflush(stdout);
                     chmask = 0;
+                    force_draw = true;
                 }
             }
         } else {
@@ -288,6 +301,7 @@ int main(int argc, char **argv) {
                 printf("\x1b[2J\x1b[H");
                 fflush(stdout);
                 renderer_set_offset(&rnd, (size_t)panel_width_for(cols));
+                force_draw = true;
             } else if (key == 'q' || key == 'Q' || key == 3) {
                 break;
             }
@@ -317,13 +331,18 @@ int main(int argc, char **argv) {
                 }
                 free(heights[0]);
                 free(heights[1]);
+                free(last_h[0]);
+                free(last_h[1]);
                 heights[0] = malloc(bars * sizeof *heights[0]);
                 heights[1] = malloc(bars * sizeof *heights[1]);
+                last_h[0] = malloc(bars * sizeof *last_h[0]);
+                last_h[1] = malloc(bars * sizeof *last_h[1]);
                 renderer_resize(&rnd, rows, cols, bars);
                 if (in_settings)
                     renderer_set_offset(&rnd, (size_t)panel_width_for(cols));
                 printf("\x1b[2J\x1b[H");
                 fflush(stdout);
+                force_draw = true;
             }
         }
 
@@ -343,25 +362,52 @@ int main(int argc, char **argv) {
 
         size_t pcl = per_ch_left(bars, cfg.channels);
         size_t pcr = per_ch_right(bars, cfg.channels);
-        double sens = cfg.sensitivity / 100.0;
-        for (size_t i = 0; i < pcl; i++)
-            heights[0][i] *= sens;
+        dsp[0].sens_scale = cfg.sensitivity / 100.0;
         if (cfg.channels > 1)
-            for (size_t i = 0; i < pcr; i++)
-                heights[1][i] *= sens;
+            dsp[1].sens_scale = cfg.sensitivity / 100.0;
 
-        size_t olen = 0;
-        if (in_settings)
-            settings_draw(st, &cfg, out, &olen, (size_t)1 << 20, rows,
-                          panel_width_for(cols));
-        if (cfg.channels > 1)
-            renderer_draw_stereo(&rnd, heights[0], heights[1], pcl, out,
-                                 &olen, (size_t)1 << 20);
-        else
-            renderer_draw(&rnd, heights[0], out, &olen, (size_t)1 << 20);
-        if (olen) {
-            fwrite(out, 1, olen, stdout);
-            fflush(stdout);
+        bool need_draw = force_draw || in_settings;
+        if (!need_draw) {
+            if (rnd.mode == RENDER_BARS) {
+                for (size_t i = 0; i < pcl; i++) {
+                    if (heights[0][i] < last_h[0][i] - VIS_EPS ||
+                        heights[0][i] > last_h[0][i] + VIS_EPS) {
+                        need_draw = true;
+                        break;
+                    }
+                }
+                if (!need_draw && cfg.channels > 1)
+                    for (size_t i = 0; i < pcr; i++) {
+                        if (heights[1][i] < last_h[1][i] - VIS_EPS ||
+                            heights[1][i] > last_h[1][i] + VIS_EPS) {
+                            need_draw = true;
+                            break;
+                        }
+                    }
+            } else {
+                need_draw = n > 0;
+            }
+        }
+
+        if (need_draw) {
+            force_draw = false;
+            memcpy(last_h[0], heights[0], pcl * sizeof *last_h[0]);
+            if (cfg.channels > 1)
+                memcpy(last_h[1], heights[1], pcr * sizeof *last_h[1]);
+
+            size_t olen = 0;
+            if (in_settings)
+                settings_draw(st, &cfg, out, &olen, (size_t)1 << 20, rows,
+                              panel_width_for(cols));
+            if (cfg.channels > 1)
+                renderer_draw_stereo(&rnd, heights[0], heights[1], pcl, out,
+                                     &olen, (size_t)1 << 20);
+            else
+                renderer_draw(&rnd, heights[0], out, &olen, (size_t)1 << 20);
+            if (olen) {
+                fwrite(out, 1, olen, stdout);
+                fflush(stdout);
+            }
         }
 
         long frame_ns = (long)(1e9 / (cfg.framerate ? cfg.framerate : 1));
@@ -385,6 +431,8 @@ int main(int argc, char **argv) {
     settings_free(st);
     free(heights[0]);
     free(heights[1]);
+    free(last_h[0]);
+    free(last_h[1]);
     free(out);
     free(save_path);
     config_free(&cfg);

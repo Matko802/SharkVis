@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "fft.h"
 
@@ -12,6 +13,7 @@ typedef struct {
     bool autosens;
     double sens;
     bool sens_init;
+    double sens_scale;
     double framerate;
     size_t frame_skip;
     double noise_reduction;
@@ -19,6 +21,12 @@ typedef struct {
     size_t fft_bass_size;
     size_t fft_size;
     size_t input_buffer_size;
+    size_t max_bass_bin;
+    size_t max_main_bin;
+
+    uint64_t last_fft_ns;
+    uint64_t fft_interval_ns;
+    unsigned sens_step;
 
     double *input_buffer;
     size_t *lower_cut_off;

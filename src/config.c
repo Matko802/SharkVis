@@ -113,7 +113,7 @@ void config_default(srk_config *c) {
     c->bars = 0;
     c->bar_width = 2;
     c->bar_spacing = 1;
-    c->framerate = 60;
+    c->framerate = 30;
     c->sensitivity = 100.0;
     c->autosens = true;
     c->lower_cutoff = 50;

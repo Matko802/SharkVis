@@ -48,7 +48,7 @@ void fft_free(fft_t *f) {
     f->im = NULL;
 }
 
-void fft_process(fft_t *f, const double *input, double *out_mag) {
+void fft_process(fft_t *f, const double *input, double *out_mag, size_t max_bin) {
     size_t n = f->n;
     for (size_t i = 0; i < n; i++) {
         size_t r = f->rev[i];
@@ -74,7 +74,8 @@ void fft_process(fft_t *f, const double *input, double *out_mag) {
             }
         }
     }
-    for (size_t b = 0; b <= n / 2; b++) {
+    size_t last = max_bin < n / 2 ? max_bin : n / 2;
+    for (size_t b = 0; b <= last; b++) {
         double r = f->re[b], im = f->im[b];
         out_mag[b] = sqrt(r * r + im * im);
     }

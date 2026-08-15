@@ -59,7 +59,7 @@ Keys:
 
 The config file is looked up in `$SHARKVIS_CONFIG`, then
 `~/.config/SharkVis/config`, then `./config`. Settings changed in the panel
-are saved automatically when you close the panel or quit. Example:
+are saved automatically when you close the panel or quit.
 
 ## Nix flakes
 
