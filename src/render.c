@@ -1,6 +1,5 @@
 #include "render.h"
 
-#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,23 +78,23 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->lj_filled = 0;
     r->lj_spc = 1;
     r->stereo_in = false;
-    r->lj_trace_x = NULL;
-    r->lj_trace_y = NULL;
-    r->lj_trace_n = 0;
-    r->lj_trace_cap = 0;
-    r->lj_angle = 0.0;
+    r->lj_draw_last = 0;
+    r->lj_glow = NULL;
+    r->lj_frame = 0;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
+    r->lj_glow = calloc((size_t)rows * cols, 1);
 }
 
 void renderer_resize(renderer_t *r, unsigned rows, unsigned cols, size_t num_bars) {
     free(r->prev);
+    free(r->lj_glow);
     r->rows = rows;
     r->cols = cols;
     r->num_bars = num_bars;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
-    r->lj_trace_n = 0;
+    r->lj_glow = calloc((size_t)rows * cols, 1);
 }
 
 void renderer_set_offset(renderer_t *r, size_t x_off) {
@@ -103,9 +102,10 @@ void renderer_set_offset(renderer_t *r, size_t x_off) {
         return;
     r->x_off = x_off;
     free(r->prev);
+    free(r->lj_glow);
     r->prev = malloc((size_t)r->rows * r->cols);
     memset(r->prev, 0xFF, (size_t)r->rows * r->cols);
-    r->lj_trace_n = 0;
+    r->lj_glow = calloc((size_t)r->rows * r->cols, 1);
 }
 
 void renderer_set_mode(renderer_t *r, render_mode m) {
@@ -113,6 +113,12 @@ void renderer_set_mode(renderer_t *r, render_mode m) {
         return;
     r->mode = m;
     renderer_clear(r);
+    if (m == RENDER_LISSAJOUS) {
+        if (r->lj_glow)
+            memset(r->lj_glow, 0, (size_t)r->rows * r->cols);
+        r->lj_draw_last = r->lj_pos;
+        r->lj_frame = 0;
+    }
 }
 
 render_mode renderer_mode_parse(const char *name) {
@@ -141,8 +147,6 @@ void renderer_set_wave(renderer_t *r, unsigned sample_rate) {
     free(r->wave_buf);
     free(r->lj_l);
     free(r->lj_r);
-    free(r->lj_trace_x);
-    free(r->lj_trace_y);
     r->wave_buf = calloc(cap, sizeof *r->wave_buf);
     r->lj_l = calloc(cap, sizeof *r->lj_l);
     r->lj_r = calloc(cap, sizeof *r->lj_r);
@@ -154,10 +158,7 @@ void renderer_set_wave(renderer_t *r, unsigned sample_rate) {
     r->lj_pos = 0;
     r->lj_filled = 0;
     r->lj_spc = lj_spc;
-    r->lj_trace_cap = 8192;
-    r->lj_trace_x = malloc(r->lj_trace_cap * sizeof *r->lj_trace_x);
-    r->lj_trace_y = malloc(r->lj_trace_cap * sizeof *r->lj_trace_y);
-    r->lj_trace_n = 0;
+    r->lj_draw_last = 0;
 }
 
 void renderer_feed(renderer_t *r, const double *left, const double *right,
@@ -184,7 +185,6 @@ void renderer_feed(renderer_t *r, const double *left, const double *right,
 void renderer_clear(renderer_t *r) {
     if (r->prev)
         memset(r->prev, 0xFF, (size_t)r->rows * r->cols);
-    r->lj_trace_n = 0;
 }
 
 void renderer_free(renderer_t *r) {
@@ -196,10 +196,8 @@ void renderer_free(renderer_t *r) {
     r->lj_l = NULL;
     free(r->lj_r);
     r->lj_r = NULL;
-    free(r->lj_trace_x);
-    r->lj_trace_x = NULL;
-    free(r->lj_trace_y);
-    r->lj_trace_y = NULL;
+    free(r->lj_glow);
+    r->lj_glow = NULL;
 }
 
 static void draw_bars(renderer_t *r, const double *left, const double *right,
@@ -353,24 +351,18 @@ static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
     }
 }
 
-static void add_trace(renderer_t *r, long x, long y) {
-    if (r->lj_trace_n < r->lj_trace_cap) {
-        r->lj_trace_x[r->lj_trace_n] = x;
-        r->lj_trace_y[r->lj_trace_n] = y;
-        r->lj_trace_n++;
-    }
+static void set_beam(renderer_t *r, long x, long y) {
+    r->lj_glow[(size_t)y * r->cols + (size_t)x] = 255;
 }
 
-static void draw_line(renderer_t *r, long x0, long y0, long x1, long y1,
-                      char *out, size_t *out_len, size_t cap) {
+static void beam_line(renderer_t *r, long x0, long y0, long x1, long y1) {
     long dx = x1 > x0 ? x1 - x0 : x0 - x1;
     long dy = y1 > y0 ? y1 - y0 : y0 - y1;
     long sx = x0 < x1 ? 1 : -1;
     long sy = y0 < y1 ? 1 : -1;
     long err = dx - dy;
     for (;;) {
-        add_trace(r, x0, y0);
-        draw_cell(r, (unsigned)y0, (size_t)x0, 8, out, out_len, cap);
+        set_beam(r, x0, y0);
         if (x0 == x1 && y0 == y1)
             break;
         long e2 = 2 * err;
@@ -387,76 +379,72 @@ static void draw_line(renderer_t *r, long x0, long y0, long x1, long y1,
 
 static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
                            char *out, size_t *out_len, size_t cap) {
-    if (!r->lj_l || !r->lj_r || r->rows < 5 || region_w < 8)
+    if (!r->lj_l || !r->lj_r || r->rows < 3 || region_w < 4)
         return;
     unsigned rows = r->rows;
+    size_t cols = r->cols;
 
-    for (size_t i = 0; i < r->lj_trace_n; i++)
-        draw_cell(r, (unsigned)r->lj_trace_y[i], (size_t)r->lj_trace_x[i], 0,
-                  out, out_len, cap);
-    r->lj_trace_n = 0;
-
-    double cx = x_start + (region_w - 1) * 0.5;
-    double cy = (rows - 1) * 0.5;
-    double sx = (region_w - 1) * 0.5;
-    double sy = (rows - 1) * 0.5;
-
-    size_t steps = region_w < 96 ? region_w * 2 : region_w;
-    for (size_t k = 0; k < steps; k++) {
-        double a = 6.283185307179586 * (double)k / (double)steps;
-        long xx = (long)(cx + cos(a) * sx + 0.5);
-        long yy = (long)(cy - sin(a) * sy + 0.5);
-        if (xx < (long)x_start || xx >= (long)(x_start + region_w) || yy < 0 ||
-            yy >= (long)rows)
-            continue;
-        draw_cell(r, (unsigned)yy, (size_t)xx, 1, out, out_len, cap);
+    size_t i;
+    if ((r->lj_frame++ & 1u) == 0) {
+        size_t total = (size_t)rows * cols;
+        for (i = 0; i < total; i++) {
+            unsigned char g = r->lj_glow[i];
+            if (g)
+                r->lj_glow[i] = g > 2 ? (unsigned char)(g - 2) : 0;
+        }
     }
 
-    r->lj_angle += 0.03;
-    double cs = cos(r->lj_angle), sn = sin(r->lj_angle);
+    size_t n = (r->lj_pos + r->lj_cap - r->lj_draw_last) % r->lj_cap;
+    if (n > 32768)
+        n = 32768;
+    if (n > 0) {
+        size_t delay = r->lj_spc ? r->lj_spc : 1;
+        double cx = x_start + (region_w - 1) * 0.5;
+        double cy = (rows - 1) * 0.5;
+        double sxc = (region_w - 1) * 0.5;
+        double syc = (rows - 1) * 0.5;
+        long px = -1, py = -1;
+        for (i = 0; i < n; i++) {
+            size_t idx = (r->lj_draw_last + i) % r->lj_cap;
+            double L = r->lj_l[idx];
+            double R = r->lj_r[idx];
+            if (!r->stereo_in) {
+                size_t idx2 = (idx + r->lj_cap - delay) % r->lj_cap;
+                R = r->lj_l[idx2];
+            }
+            if (L < -1.0)
+                L = -1.0;
+            else if (L > 1.0)
+                L = 1.0;
+            if (R < -1.0)
+                R = -1.0;
+            else if (R > 1.0)
+                R = 1.0;
+            long xx = (long)(cx + L * sxc + 0.5);
+            long yy = (long)(cy - R * syc + 0.5);
+            if (xx < (long)x_start || xx >= (long)(x_start + region_w) ||
+                yy < 0 || yy >= (long)rows) {
+                px = py = -1;
+                continue;
+            }
+            if (px >= 0 && py >= 0)
+                beam_line(r, px, py, xx, yy);
+            else
+                set_beam(r, xx, yy);
+            px = xx;
+            py = yy;
+        }
+        r->lj_draw_last = r->lj_pos;
+    }
 
-    size_t spc = r->lj_spc ? r->lj_spc : 1;
-    size_t npts = r->lj_filled / spc;
-    if (npts > r->lj_trace_cap)
-        npts = r->lj_trace_cap;
-    if (npts < 2)
-        return;
-
-    long px = -1, py = -1;
-    for (size_t k = 0; k < npts; k++) {
-        size_t off = (npts - 1 - k) * spc;
-        size_t idx = (r->lj_pos + r->lj_cap - 1 - off) % r->lj_cap;
-        double L = r->lj_l[idx];
-        double R = r->lj_r[idx];
-        if (!r->stereo_in) {
-            size_t idx2 = (idx + r->lj_cap - spc) % r->lj_cap;
-            R = r->lj_l[idx2];
+    for (unsigned y = 0; y < rows; y++) {
+        for (size_t x = x_start; x < x_start + region_w; x++) {
+            unsigned char g = r->lj_glow[(size_t)y * cols + x];
+            int gi = g ? (int)((g + 31) / 32) : 0;
+            if (gi > 8)
+                gi = 8;
+            draw_cell(r, y, x, gi, out, out_len, cap);
         }
-        if (L < -1.0)
-            L = -1.0;
-        else if (L > 1.0)
-            L = 1.0;
-        if (R < -1.0)
-            R = -1.0;
-        else if (R > 1.0)
-            R = 1.0;
-        double x = L * cs - R * sn;
-        double y = L * sn + R * cs;
-        long xx = (long)(cx + x * sx + 0.5);
-        long yy = (long)(cy - y * sy + 0.5);
-        if (xx < (long)x_start || xx >= (long)(x_start + region_w) || yy < 0 ||
-            yy >= (long)rows) {
-            px = py = -1;
-            continue;
-        }
-        if (px >= 0 && py >= 0)
-            draw_line(r, px, py, xx, yy, out, out_len, cap);
-        else {
-            add_trace(r, xx, yy);
-            draw_cell(r, (unsigned)yy, (size_t)xx, 8, out, out_len, cap);
-        }
-        px = xx;
-        py = yy;
     }
 }
 

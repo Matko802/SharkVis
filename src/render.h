@@ -35,11 +35,9 @@ typedef struct {
     size_t lj_filled;
     size_t lj_spc;
     bool stereo_in;
-    long *lj_trace_x;
-    long *lj_trace_y;
-    size_t lj_trace_n;
-    size_t lj_trace_cap;
-    double lj_angle;
+    size_t lj_draw_last;
+    unsigned char *lj_glow;
+    unsigned lj_frame;
 } renderer_t;
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,
