@@ -373,6 +373,12 @@ static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
                 lo = nxt;
             if (nxt > hi)
                 hi = nxt;
+        } else if (c + 1 == ncol && c > 0 && yrow[c - 1] >= 0) {
+            long nxt = yrow[c - 1]; /* cap the right edge to the previous column */
+            if (nxt < lo)
+                lo = nxt;
+            if (nxt > hi)
+                hi = nxt;
         }
         for (unsigned y = 0; y < (unsigned)lo; y++)
             emit_cell(r, y, x, 0, &st, out, out_len, cap);
