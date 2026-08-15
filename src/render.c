@@ -56,6 +56,9 @@ static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
 typedef struct {
     bool active;
     char col[40];
+    bool cur_set;
+    long cur_r;
+    long cur_c;
 } color_state;
 
 static void emit_color(const renderer_t *r, unsigned from_bottom, color_state *st,
@@ -67,6 +70,44 @@ static void emit_color(const renderer_t *r, unsigned from_bottom, color_state *s
     write_esc(out, out_len, cap, "%s", buf);
     snprintf(st->col, sizeof st->col, "%s", buf);
     st->active = true;
+}
+
+static void seek_cell(color_state *st, long r, long c, char *out,
+                      size_t *out_len, size_t cap) {
+    if (!st->cur_set) {
+        write_esc(out, out_len, cap, "\x1b[%ld;%ldH", r + 1, c + 1);
+    } else {
+        long dc = c - (st->cur_c + 1);
+        long dr = r - st->cur_r;
+        if (dr > 0)
+            write_esc(out, out_len, cap, "\x1b[%ldB", dr);
+        else if (dr < 0)
+            write_esc(out, out_len, cap, "\x1b[%ldA", -dr);
+        if (dc == -1)
+            write_esc(out, out_len, cap, "\b");
+        else if (dc > 0)
+            write_esc(out, out_len, cap, "\x1b[%ldC", dc);
+        else if (dc < -1)
+            write_esc(out, out_len, cap, "\x1b[%ldD", -dc);
+    }
+    st->cur_r = r;
+    st->cur_c = c;
+    st->cur_set = true;
+}
+
+static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *st,
+                      char *out, size_t *out_len, size_t cap) {
+    size_t idx = (size_t)y * r->cols + x;
+    if ((unsigned char)gi == r->prev[idx])
+        return;
+    r->prev[idx] = (unsigned char)gi;
+    seek_cell(st, (long)y, (long)x, out, out_len, cap);
+    if (gi == 0) {
+        write_esc(out, out_len, cap, " ");
+    } else {
+        emit_color(r, r->rows - 1 - y, st, out, out_len, cap);
+        write_esc(out, out_len, cap, "%s", GLYPHS[gi]);
+    }
 }
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,
@@ -268,21 +309,7 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
                     gi = 0;
                 if (gi > 8)
                     gi = 8;
-
-                size_t idx = (size_t)y * cols + col;
-                if (gi == r->prev[idx])
-                    continue;
-                r->prev[idx] = (unsigned char)gi;
-
-                if (gi == 0) {
-                    write_esc(out, out_len, cap, "\x1b[%u;%zuH ", y + 1,
-                              col + 1);
-                } else {
-                    write_esc(out, out_len, cap, "\x1b[%u;%zuH", y + 1,
-                              col + 1);
-                    emit_color(r, fb, &st, out, out_len, cap);
-                    write_esc(out, out_len, cap, "%s", GLYPHS[gi]);
-                }
+                emit_cell(r, y, col, gi, &st, out, out_len, cap);
             }
         }
     }
@@ -297,24 +324,8 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
             size_t idx = (size_t)y * cols + abs_col;
             if (r->prev[idx] == 0xFF)
                 continue;
-            r->prev[idx] = 0;
-            write_esc(out, out_len, cap, "\x1b[%u;%zuH ", y + 1, abs_col + 1);
+            emit_cell(r, y, abs_col, 0, &st, out, out_len, cap);
         }
-    }
-}
-
-static void draw_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *st,
-                      char *out, size_t *out_len, size_t cap) {
-    size_t idx = (size_t)y * r->cols + x;
-    if ((unsigned char)gi == r->prev[idx])
-        return;
-    r->prev[idx] = (unsigned char)gi;
-    if (gi == 0) {
-        write_esc(out, out_len, cap, "\x1b[%u;%zuH ", y + 1, x + 1);
-    } else {
-        write_esc(out, out_len, cap, "\x1b[%u;%zuH", y + 1, x + 1);
-        emit_color(r, r->rows - 1 - y, st, out, out_len, cap);
-        write_esc(out, out_len, cap, "%s", GLYPHS[gi]);
     }
 }
 
@@ -352,7 +363,7 @@ static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
         long cur = yrow[c];
         if (cur < 0) {
             for (unsigned y = 0; y < r->rows; y++)
-                draw_cell(r, y, x, 0, &st, out, out_len, cap);
+                emit_cell(r, y, x, 0, &st, out, out_len, cap);
             continue;
         }
         long lo = cur, hi = cur;
@@ -364,11 +375,11 @@ static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
                 hi = nxt;
         }
         for (unsigned y = 0; y < (unsigned)lo; y++)
-            draw_cell(r, y, x, 0, &st, out, out_len, cap);
+            emit_cell(r, y, x, 0, &st, out, out_len, cap);
         for (long y = lo; y <= hi; y++)
-            draw_cell(r, (unsigned)y, x, 8, &st, out, out_len, cap);
+            emit_cell(r, (unsigned)y, x, 8, &st, out, out_len, cap);
         for (unsigned y = (unsigned)hi + 1; y < r->rows; y++)
-            draw_cell(r, y, x, 0, &st, out, out_len, cap);
+            emit_cell(r, y, x, 0, &st, out, out_len, cap);
     }
 }
 
@@ -455,7 +466,7 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
         for (size_t x = x_start; x < x_start + region_w; x++) {
             unsigned char g = r->lj_glow[(size_t)y * cols + x];
             int gi = g ? 8 : 0;
-            draw_cell(r, y, x, gi, &st, out, out_len, cap);
+            emit_cell(r, y, x, gi, &st, out, out_len, cap);
         }
     }
 }

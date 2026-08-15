@@ -377,7 +377,7 @@ static void panel_row(char *out, size_t *n, size_t cap, unsigned y, int pw,
         p += seq;
     }
 
-    write_esc(out, n, cap, "\x1b[%u;1H%s%.*s\x1b[0m", y, style ? style : "",
+    write_esc(out, n, cap, "\x1b[0m\x1b[%u;1H%s%.*s", y, style ? style : "",
               emit, text);
     for (int i = vis; i < pw; i++)
         write_esc(out, n, cap, " ");
