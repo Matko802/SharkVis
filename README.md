@@ -1,7 +1,6 @@
 # SharkVis
 
-Audio visualizer, inspired by
-[cava](https://github.com/karlstav/cava). Written in C, with more features without any "bloat"
+Linux only audio visualizer made in C
 
 ## Features
 
@@ -143,3 +142,6 @@ nix develop github:Matko802/SharkVis   # shell with build dependencies
 
 This project is currently unlicensed. Contact the author if you wish to
 redistribute or reuse it.
+
+Inspired by
+[cava](https://github.com/karlstav/cava).
