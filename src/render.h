@@ -6,7 +6,6 @@
 
 typedef enum {
     RENDER_BARS,
-    RENDER_BALL,
     RENDER_WAVE,
 } render_mode;
 
@@ -21,7 +20,6 @@ typedef struct {
     unsigned grad_lo;
     unsigned grad_hi;
     render_mode mode;
-    double ball_amp;
     size_t x_off;
     unsigned char *prev;
     double *wave_buf;
