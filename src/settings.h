@@ -1,5 +1,5 @@
-#ifndef SHRK_SETTINGS_H
-#define SHRK_SETTINGS_H
+#ifndef SHARK_SETTINGS_H
+#define SHARK_SETTINGS_H
 
 #include <stdbool.h>
 #include <stddef.h>

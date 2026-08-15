@@ -1,5 +1,5 @@
-#ifndef SHRK_DSP_H
-#define SHRK_DSP_H
+#ifndef SHARK_DSP_H
+#define SHARK_DSP_H
 
 #include <stdbool.h>
 #include <stddef.h>

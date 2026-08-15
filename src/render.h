@@ -1,5 +1,5 @@
-#ifndef SHRK_RENDER_H
-#define SHRK_RENDER_H
+#ifndef SHARK_RENDER_H
+#define SHARK_RENDER_H
 
 #include <stdbool.h>
 #include <stddef.h>

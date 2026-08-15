@@ -1,5 +1,5 @@
-#ifndef SHRK_FFT_H
-#define SHRK_FFT_H
+#ifndef SHARK_FFT_H
+#define SHARK_FFT_H
 
 #include <stddef.h>
 

@@ -18,7 +18,7 @@ development headers (`libpulse-simple`).
 
 ```sh
 make
-sudo make install   
+sudo make install
 ```
 You can also override the prefix:
 
@@ -29,9 +29,9 @@ make PREFIX=$HOME/.local install
 ## Usage
 
 ```sh
-sharkvis                
-sharkvis -p config.conf 
-sharkvis -h             
+sharkvis
+sharkvis -p config.conf
+sharkvis -h
 ```
 
 Keys:
@@ -41,8 +41,8 @@ Keys:
 | `g`               | open settings panel             |
 | `q` / `Ctrl-C`    | quit                            |
 
-The config file is looked up in `$SHRKVIS_CONFIG`, then
-`~/.config/SHRKVis/config`, then `./config`. Example:
+The config file is looked up in `$SHARKVIS_CONFIG`, then
+`~/.config/SharkVis/config`, then `./config`. Example:
 
 ```ini
 [general]
@@ -69,7 +69,7 @@ gradient = 0
 
 ## Nix flakes
 
-SHRKVis ships with its own flake, so you can pull it straight from GitHub.
+SharkVis ships with its own flake, so you can pull it straight from GitHub.
 
 ### As a flake input
 
@@ -77,14 +77,14 @@ SHRKVis ships with its own flake, so you can pull it straight from GitHub.
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    shrkvis = {
-      url = "github:Matko802/SHRKVis";
+    sharkvis = {
+      url = "github:Matko802/SharkVis";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, shrkvis, ... }: {
-    packages.x86_64-linux.default = shrkvis.packages.x86_64-linux.default;
+  outputs = { nixpkgs, sharkvis, ... }: {
+    packages.x86_64-linux.default = sharkvis.packages.x86_64-linux.default;
   };
 }
 ```
@@ -92,7 +92,7 @@ SHRKVis ships with its own flake, so you can pull it straight from GitHub.
 ### As an overlay
 
 The flake also exposes `overlays.default`, so you can enable it with
-`nixpkgs.overlays = [ shrkvis.overlays.default ];` and get `pkgs.SHRKVis`.
+`nixpkgs.overlays = [ sharkvis.overlays.default ];` and get `pkgs.SharkVis`.
 
 A full NixOS example that pulls the flake in as both an overlay and a package:
 
@@ -100,14 +100,14 @@ A full NixOS example that pulls the flake in as both an overlay and a package:
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    shrkvis = {
-      url = "github:Matko802/SHRKVis";
+    sharkvis = {
+      url = "github:Matko802/SharkVis";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
   outputs =
-    { nixpkgs, shrkvis, ... }:
+    { nixpkgs, sharkvis, ... }:
     let
       system = "x86_64-linux";
     in
@@ -116,8 +116,8 @@ A full NixOS example that pulls the flake in as both an overlay and a package:
         inherit system;
         modules = [
           {
-            nixpkgs.overlays = [ shrkvis.overlays.default ];
-            environment.systemPackages = [ shrkvis.packages.${system}.default ];
+            nixpkgs.overlays = [ sharkvis.overlays.default ];
+            environment.systemPackages = [ sharkvis.packages.${system}.default ];
           }
         ];
       };
@@ -128,14 +128,14 @@ A full NixOS example that pulls the flake in as both an overlay and a package:
 ### Standalone build from source
 
 ```sh
-nix build github:Matko802/SHRKVis
-nix run github:Matko802/SHRKVis
+nix build github:Matko802/SharkVis
+nix run github:Matko802/SharkVis
 ```
 
 ### Development
 
 ```sh
-nix develop github:Matko802/SHRKVis   # shell with build dependencies
+nix develop github:Matko802/SharkVis   # shell with build dependencies
 ```
 
 ## License

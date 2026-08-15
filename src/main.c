@@ -26,7 +26,7 @@ static void on_winch(int sig) {
 }
 
 static void usage(void) {
-    printf("usage: SHRKVis [-p config_file]\n");
+    printf("usage: SharkVis [-p config_file]\n");
     printf("  g - settings, q - quit\n");
 }
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
             usage();
             return 0;
         } else {
-            fprintf(stderr, "SHRKVis: unknown option '%s'\n", argv[i]);
+            fprintf(stderr, "SharkVis: unknown option '%s'\n", argv[i]);
             usage();
             return 1;
         }
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
     if (cfgpath) {
         path = strdup(cfgpath);
         if (!config_load(&cfg, path)) {
-            fprintf(stderr, "SHRKVis: error loading config %s\n", path);
+            fprintf(stderr, "SharkVis: error loading config %s\n", path);
             free(path);
             config_free(&cfg);
             return 1;
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
     } else {
         path = config_default_path();
         if (access(path, F_OK) == 0 && !config_load(&cfg, path))
-            fprintf(stderr, "SHRKVis: error loading config %s, using defaults\n", path);
+            fprintf(stderr, "SharkVis: error loading config %s, using defaults\n", path);
     }
     free(path);
 
@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
     audio_start(&audio, cfg.source, cfg.sample_rate, cfg.channels);
 
     if (!term_raw_enter(0)) {
-        fprintf(stderr, "SHRKVis: not a terminal\n");
+        fprintf(stderr, "SharkVis: not a terminal\n");
         audio_stop(&audio);
         dsp_free(&dsp);
         config_free(&cfg);
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
         if (n > 0)
             dsp_execute(&dsp, samples, n, heights);
         if (audio_failed(&audio)) {
-            fprintf(stderr, "\nSHRKVis: audio input failed: %s\n", audio_error(&audio));
+            fprintf(stderr, "\nSharkVis: audio input failed: %s\n", audio_error(&audio));
             rc = 1;
             break;
         }

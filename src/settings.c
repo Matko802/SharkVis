@@ -270,7 +270,7 @@ void settings_draw(const settings_ui *s, const srk_config *cfg, char *out,
                    size_t *out_len, size_t cap, unsigned rows, int panel_width) {
     (void)rows;
     size_t n = 0;
-    panel_row(out, &n, cap, 1, panel_width, "SHRKVis settings", NULL, false);
+    panel_row(out, &n, cap, 1, panel_width, "SharkVis settings", NULL, false);
     panel_row(out, &n, cap, 2, panel_width, "up/down select", NULL, false);
     panel_row(out, &n, cap, 3, panel_width, "left/right adjust", NULL, false);
     panel_row(out, &n, cap, 4, panel_width, "g close, q quit", NULL, false);

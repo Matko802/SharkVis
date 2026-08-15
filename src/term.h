@@ -1,5 +1,5 @@
-#ifndef SHRK_TERM_H
-#define SHRK_TERM_H
+#ifndef SHARK_TERM_H
+#define SHARK_TERM_H
 
 #include <stdbool.h>
 

@@ -1,5 +1,5 @@
-#ifndef SHRK_AUDIO_H
-#define SHRK_AUDIO_H
+#ifndef SHARK_AUDIO_H
+#define SHARK_AUDIO_H
 
 #include <pthread.h>
 #include <stdbool.h>
