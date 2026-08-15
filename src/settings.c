@@ -381,6 +381,7 @@ static void panel_row(char *out, size_t *n, size_t cap, unsigned y, int pw,
               emit, text);
     for (int i = vis; i < pw; i++)
         write_esc(out, n, cap, " ");
+    write_esc(out, n, cap, "\x1b[0m");
 }
 
 void settings_draw(settings_ui *s, const srk_config *cfg, char *out,
