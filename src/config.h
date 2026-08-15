@@ -18,7 +18,22 @@ typedef struct {
     unsigned sample_rate;
     unsigned channels;
     bool gradient;
+    char *color;
+    char *gradient_low;
+    char *gradient_high;
 } srk_config;
+
+typedef struct {
+    const char *name;
+    const char *hex;
+} color_entry;
+
+extern const color_entry g_palette[];
+extern const int g_palette_n;
+
+const char *color_name(const char *hex);
+int color_index(const char *hex);
+int color_to_rgb(const char *hex, unsigned *r, unsigned *g, unsigned *b);
 
 void config_default(srk_config *c);
 bool config_load(srk_config *c, const char *path);

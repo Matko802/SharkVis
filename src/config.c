@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -35,7 +36,80 @@ static double getf(const char *v, double def) {
     return r;
 }
 
+const color_entry g_palette[] = {
+    { "white",   "ffffff" },
+    { "red",     "ff0000" },
+    { "green",   "00ff00" },
+    { "blue",    "0000ff" },
+    { "yellow",  "ffff00" },
+    { "magenta", "ff00ff" },
+    { "cyan",    "00ffff" },
+    { "orange",  "ff8800" },
+    { "purple",  "8800ff" },
+    { "lime",    "88ff00" },
+    { "teal",    "00ff88" },
+    { "pink",    "ff0088" },
+    { "gray",    "888888" },
+    { "black",   "000000" },
+};
+const int g_palette_n = (int)(sizeof g_palette / sizeof g_palette[0]);
+
+static int hexval(char c) {
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return -1;
+}
+
+static int parse_hex_rgb(const char *s, unsigned *r, unsigned *g, unsigned *b) {
+    if (!s)
+        return -1;
+    if (*s == '#')
+        s++;
+    size_t len = strlen(s);
+    if (len != 6)
+        return -1;
+    int v[6];
+    for (int i = 0; i < 6; i++) {
+        v[i] = hexval(s[i]);
+        if (v[i] < 0)
+            return -1;
+    }
+    *r = (unsigned)((v[0] << 4) | v[1]);
+    *g = (unsigned)((v[2] << 4) | v[3]);
+    *b = (unsigned)((v[4] << 4) | v[5]);
+    return 0;
+}
+
+const char *color_name(const char *hex) {
+    if (!hex)
+        return NULL;
+    for (int i = 0; i < g_palette_n; i++) {
+        if (strcasecmp(hex, g_palette[i].hex) == 0)
+            return g_palette[i].name;
+    }
+    return NULL;
+}
+
+int color_index(const char *hex) {
+    if (!hex)
+        return -1;
+    for (int i = 0; i < g_palette_n; i++) {
+        if (strcasecmp(hex, g_palette[i].hex) == 0)
+            return i;
+    }
+    return -1;
+}
+
+int color_to_rgb(const char *hex, unsigned *r, unsigned *g, unsigned *b) {
+    return parse_hex_rgb(hex, r, g, b);
+}
+
 void config_default(srk_config *c) {
+    memset(c, 0, sizeof *c);
     c->bars = 0;
     c->bar_width = 2;
     c->bar_spacing = 1;
@@ -45,10 +119,17 @@ void config_default(srk_config *c) {
     c->lower_cutoff = 50;
     c->higher_cutoff = 8000;
     c->noise_reduction = 0.2;
+    free(c->source);
     c->source = strdup("auto");
     c->sample_rate = 48000;
     c->channels = 2;
     c->gradient = false;
+    free(c->color);
+    c->color = strdup("ffffff");
+    free(c->gradient_low);
+    c->gradient_low = strdup("ff0000");
+    free(c->gradient_high);
+    c->gradient_high = strdup("00ff00");
 }
 
 char *config_default_path(void) {
@@ -77,6 +158,9 @@ char *config_default_path(void) {
 
 void config_free(srk_config *c) {
     free(c->source);
+    free(c->color);
+    free(c->gradient_low);
+    free(c->gradient_high);
 }
 
 static void mkdir_p(const char *path) {
@@ -124,6 +208,9 @@ bool config_save(const srk_config *c, const char *path) {
     fprintf(f, "channels = %u\n", c->channels);
     fprintf(f, "\n[color]\n");
     fprintf(f, "gradient = %d\n", c->gradient ? 1 : 0);
+    fprintf(f, "color = %s\n", c->color ? c->color : "ffffff");
+    fprintf(f, "gradient_low = %s\n", c->gradient_low ? c->gradient_low : "ff0000");
+    fprintf(f, "gradient_high = %s\n", c->gradient_high ? c->gradient_high : "00ff00");
 
     return fclose(f) == 0;
 }
@@ -198,6 +285,31 @@ bool config_load(srk_config *c, const char *path) {
         } else if (strcmp(section, "color") == 0) {
             if (strcmp(key, "gradient") == 0)
                 c->gradient = geti(val, 1) != 0;
+            else if (strcmp(key, "color") == 0) {
+                char tmp[8];
+                snprintf(tmp, sizeof tmp, "%s", val);
+                unsigned rr, gg, bb;
+                if (parse_hex_rgb(tmp, &rr, &gg, &bb) == 0) {
+                    free(c->color);
+                    c->color = strdup(tmp);
+                }
+            } else if (strcmp(key, "gradient_low") == 0) {
+                char tmp[8];
+                snprintf(tmp, sizeof tmp, "%s", val);
+                unsigned rr, gg, bb;
+                if (parse_hex_rgb(tmp, &rr, &gg, &bb) == 0) {
+                    free(c->gradient_low);
+                    c->gradient_low = strdup(tmp);
+                }
+            } else if (strcmp(key, "gradient_high") == 0) {
+                char tmp[8];
+                snprintf(tmp, sizeof tmp, "%s", val);
+                unsigned rr, gg, bb;
+                if (parse_hex_rgb(tmp, &rr, &gg, &bb) == 0) {
+                    free(c->gradient_high);
+                    c->gradient_high = strdup(tmp);
+                }
+            }
         }
     }
 

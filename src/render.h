@@ -11,6 +11,9 @@ typedef struct {
     size_t bar_spacing;
     size_t num_bars;
     bool gradient;
+    unsigned color;
+    unsigned grad_lo;
+    unsigned grad_hi;
     size_t x_off;
     unsigned char *prev;
 } renderer_t;

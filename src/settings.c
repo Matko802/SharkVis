@@ -18,6 +18,9 @@ typedef enum {
     S_LOW,
     S_HIGH,
     S_GRAD,
+    S_COL,
+    S_GLO,
+    S_GHI,
     S_RATE,
     S_CH,
     S_COUNT,
@@ -38,6 +41,9 @@ static const char *const LABELS[S_COUNT] = {
     "lower cutoff",
     "upper cutoff",
     "gradient color",
+    "bar color",
+    "gradient low",
+    "gradient high",
     "sample rate",
     "channels",
 };
@@ -164,6 +170,20 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         }
         break;
     }
+    case S_COL:
+    case S_GLO:
+    case S_GHI: {
+        char **dst = (id == S_COL) ? &c->color
+            : (id == S_GLO) ? &c->gradient_low : &c->gradient_high;
+        int idx = color_index(*dst);
+        if (idx < 0)
+            idx = 0;
+        idx = (idx + dir + g_palette_n) % g_palette_n;
+        free(*dst);
+        *dst = strdup(g_palette[idx].hex);
+        *changed |= CH_LAYOUT;
+        break;
+    }
     case S_RATE: {
         int idx = 0;
         for (int i = 0; i < RATES_N; i++) {
@@ -239,9 +259,20 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
             snprintf(buf, n, "%zu", c->bars);
         break;
     case S_AUTO:
-    case S_GRAD:
         snprintf(buf, n, "%s", c->autosens ? "on" : "off");
         break;
+    case S_GRAD:
+        snprintf(buf, n, "%s", c->gradient ? "on" : "off");
+        break;
+    case S_COL:
+    case S_GLO:
+    case S_GHI: {
+        const char *hx = (id == S_COL) ? c->color
+            : (id == S_GLO) ? c->gradient_low : c->gradient_high;
+        const char *nm = color_name(hx);
+        snprintf(buf, n, "%s", nm ? nm : (hx ? hx : "?"));
+        break;
+    }
     case S_NOISE:
         snprintf(buf, n, "%.2f", c->noise_reduction);
         break;

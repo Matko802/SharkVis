@@ -62,6 +62,16 @@ static size_t per_ch_right(size_t bars, unsigned channels) {
     return bars;
 }
 
+static void apply_colors(renderer_t *rnd, const srk_config *cfg) {
+    unsigned r, g, b;
+    if (color_to_rgb(cfg->color, &r, &g, &b) == 0)
+        rnd->color = (r << 16) | (g << 8) | b;
+    if (color_to_rgb(cfg->gradient_low, &r, &g, &b) == 0)
+        rnd->grad_lo = (r << 16) | (g << 8) | b;
+    if (color_to_rgb(cfg->gradient_high, &r, &g, &b) == 0)
+        rnd->grad_hi = (r << 16) | (g << 8) | b;
+}
+
 static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
                            srk_config *cfg, size_t *bars, double *heights[2],
                            unsigned rows, unsigned cols, unsigned chmask,
@@ -95,6 +105,7 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
     rnd->bar_width = cfg->bar_width;
     rnd->bar_spacing = cfg->bar_spacing;
     rnd->gradient = cfg->gradient;
+    apply_colors(rnd, cfg);
     renderer_set_offset(rnd, x_off);
     renderer_clear(rnd);
 
@@ -208,6 +219,7 @@ int main(int argc, char **argv) {
 
     renderer_t rnd;
     renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars, cfg.gradient);
+    apply_colors(&rnd, &cfg);
 
     double *heights[2];
     heights[0] = malloc(bars * sizeof *heights[0]);

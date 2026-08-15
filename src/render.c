@@ -17,15 +17,24 @@ static const char *const GLYPHS[9] = {
     "\xe2\x96\x88", /* █ */
 };
 
-static const char *color_for(unsigned from_bottom, unsigned rows) {
-    unsigned third = rows / 3;
-    if (third == 0)
-        return "\x1b[32m";
-    if (from_bottom >= rows - third)
-        return "\x1b[32m";
-    if (from_bottom >= rows - 2 * third)
-        return "\x1b[33m";
-    return "\x1b[31m";
+static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
+                      char *buf, size_t n) {
+    unsigned cr = (r->color >> 16) & 0xff, cg = (r->color >> 8) & 0xff,
+             cb = r->color & 0xff;
+    if (r->gradient) {
+        long lo_r = (r->grad_lo >> 16) & 0xff, lo_g = (r->grad_lo >> 8) & 0xff,
+             lo_b = r->grad_lo & 0xff;
+        long hi_r = (r->grad_hi >> 16) & 0xff, hi_g = (r->grad_hi >> 8) & 0xff,
+             hi_b = r->grad_hi & 0xff;
+        double t = rows > 1 ? (double)from_bottom / (double)(rows - 1) : 0.0;
+        cr = (unsigned)(lo_r + (hi_r - lo_r) * t + 0.5);
+        cg = (unsigned)(lo_g + (hi_g - lo_g) * t + 0.5);
+        cb = (unsigned)(lo_b + (hi_b - lo_b) * t + 0.5);
+        if (cr > 255) cr = 255;
+        if (cg > 255) cg = 255;
+        if (cb > 255) cb = 255;
+    }
+    snprintf(buf, n, "\x1b[38;2;%u;%u;%um", cr, cg, cb);
 }
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,
@@ -36,6 +45,9 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->bar_spacing = bar_spacing;
     r->num_bars = num_bars;
     r->gradient = gradient;
+    r->color = 0xffffffu;
+    r->grad_lo = 0xff0000u;
+    r->grad_hi = 0x00ff00u;
     r->x_off = 0;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
@@ -127,9 +139,10 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
                     continue;
                 r->prev[idx] = (unsigned char)gi;
 
-                const char *color = r->gradient ? color_for(fb, rows) : "\x1b[37m";
+                char colr[40];
+                bar_color(r, fb, rows, colr, sizeof colr);
                 int n = snprintf(out + *out_len, cap - *out_len,
-                                 "\x1b[%u;%zuH%s%s\x1b[0m", y + 1, col + 1, color,
+                                 "\x1b[%u;%zuH%s%s\x1b[0m", y + 1, col + 1, colr,
                                  GLYPHS[gi]);
                 if (n > 0)
                     *out_len += (size_t)n;
