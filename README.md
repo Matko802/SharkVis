@@ -14,55 +14,34 @@ Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https:
 
 ## Building
 
-SharkVis is a plain C11 program built with `make` and only one runtime
-dependency (PulseAudio / PipeWire audio). It works on any Linux distro.
-
-### 1. Install the build dependencies
-
-You need a C11 compiler (`gcc` or `clang`), `make`, `pkg-config`, and the
-PulseAudio development headers (`libpulse-simple`). Install them with your
-distro's package manager:
-
-| Distro family      | Command                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
-| Debian / Ubuntu    | `sudo apt install build-essential pkg-config libpulse-dev`              |
-| Arch / Manjaro     | `sudo pacman -S base-devel libpulse`                                    |
-| Fedora             | `sudo dnf install gcc make pkgconf-pkg-config pulseaudio-libs-devel`    |
-| openSUSE           | `sudo zypper install gcc make pkg-config libpulse-devel`                |
-| Void               | `sudo xbps-install base-devel pkg-config pulseaudio-devel`              |
-| Alpine             | `sudo apk add build-base pkgconfig libpulse-dev`                        |
-| Gentoo             | `sudo emerge -av sys-devel/gcc sys-devel/make sys-devel/pkgconf media-libs/libpulse` |
-
-On PipeWire systems (the default on Fedora, openSUSE, and Arch since 2023)
-the PulseAudio compatibility layer is provided by the same `libpulse` /
-`libpulse-dev` packages, so nothing extra is needed.
-
-You can verify the headers are present before building:
+Works on any Linux distro. Dependencies are handled for you — `make deps`
+detects your package manager (Debian/Ubuntu, Arch, Fedora, openSUSE, Void,
+Alpine, Gentoo) and installs the compiler, `pkg-config`, and the PulseAudio /
+PipeWire dev headers. On PipeWire systems (Fedora, openSUSE, Arch since 2023)
+the same package provides the PulseAudio compatibility layer, so nothing extra
+is needed.
 
 ```sh
-pkg-config --exists libpulse-simple && echo "ok"
+git clone https://github.com/Matko802/SharkVis.git
+cd SharkVis
+make deps        # installs build dependencies (needs sudo)
+make             # builds ./sharkvis
+sudo make install
 ```
 
-### 2. Build and install
+Prefer not to touch your system? On NixOS or any distro with Nix installed:
 
 ```sh
-make
-sudo make install        # installs to /usr/local/bin/sharkvis
+nix run github:Matko802/SharkVis
 ```
 
-To install somewhere else, override the prefix:
+To install somewhere else instead of `/usr/local`:
 
 ```sh
 make PREFIX=$HOME/.local install
 ```
 
-For packaging (rpm/deb/arch), install into a staging directory:
-
-```sh
-make DESTDIR=$pkgdir PREFIX=/usr install
-```
-
-### 3. Run it
+### Run it
 
 ```sh
 sharkvis
