@@ -50,7 +50,13 @@ static size_t bar_count_for(unsigned cols, const srk_config *cfg) {
     return b < 1 ? 1 : b;
 }
 
-static size_t per_ch_bars(size_t bars, unsigned channels) {
+static size_t per_ch_left(size_t bars, unsigned channels) {
+    if (channels > 1 && bars > 1)
+        return (bars + 1) / 2;
+    return bars;
+}
+
+static size_t per_ch_right(size_t bars, unsigned channels) {
     if (channels > 1 && bars > 1)
         return bars / 2;
     return bars;
@@ -61,14 +67,16 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
                            unsigned rows, unsigned cols, unsigned chmask,
                            bool audio_reinit, size_t x_off) {
     size_t new_bars = bar_count_for(cols, cfg);
-    size_t per_ch = per_ch_bars(new_bars, cfg->channels);
+    size_t pcl = per_ch_left(new_bars, cfg->channels);
+    size_t pcr = per_ch_right(new_bars, cfg->channels);
 
     if ((chmask & (CH_DSP | CH_AUDIO)) || new_bars != *bars) {
+        size_t per[2] = { pcl, pcr };
         for (int ch = 0; ch < 2; ch++) {
             double saved_sens = dsp[ch].sens;
             bool saved_sens_init = dsp[ch].sens_init;
             dsp_free(&dsp[ch]);
-            dsp_init(&dsp[ch], per_ch, cfg->sample_rate, cfg->autosens,
+            dsp_init(&dsp[ch], per[ch], cfg->sample_rate, cfg->autosens,
                      cfg->noise_reduction, cfg->lower_cutoff, cfg->higher_cutoff);
             dsp[ch].sens = saved_sens;
             dsp[ch].sens_init = saved_sens_init;
@@ -164,11 +172,12 @@ int main(int argc, char **argv) {
     }
 
     size_t bars = bar_count_for(cols, &cfg);
-    size_t per_ch = per_ch_bars(bars, cfg.channels);
+    size_t per[2] = { per_ch_left(bars, cfg.channels),
+                      per_ch_right(bars, cfg.channels) };
 
     dsp_t dsp[2];
     for (int ch = 0; ch < 2; ch++)
-        dsp_init(&dsp[ch], per_ch, cfg.sample_rate, cfg.autosens,
+        dsp_init(&dsp[ch], per[ch], cfg.sample_rate, cfg.autosens,
                  cfg.noise_reduction, cfg.lower_cutoff, cfg.higher_cutoff);
 
     audio_t audio;
@@ -260,7 +269,8 @@ int main(int argc, char **argv) {
                 size_t new_bars = bar_count_for(nc, &cfg);
                 if (new_bars < 1)
                     new_bars = 1;
-                size_t per = per_ch_bars(new_bars, cfg.channels);
+                size_t per[2] = { per_ch_left(new_bars, cfg.channels),
+                                  per_ch_right(new_bars, cfg.channels) };
                 cols = nc;
                 rows = nr;
                 bars = new_bars;
@@ -268,7 +278,7 @@ int main(int argc, char **argv) {
                     double saved_sens = dsp[ch].sens;
                     bool saved_sens_init = dsp[ch].sens_init;
                     dsp_free(&dsp[ch]);
-                    dsp_init(&dsp[ch], per, cfg.sample_rate, cfg.autosens,
+                    dsp_init(&dsp[ch], per[ch], cfg.sample_rate, cfg.autosens,
                              cfg.noise_reduction, cfg.lower_cutoff, cfg.higher_cutoff);
                     dsp[ch].sens = saved_sens;
                     dsp[ch].sens_init = saved_sens_init;
@@ -298,12 +308,13 @@ int main(int argc, char **argv) {
             break;
         }
 
-        per_ch = per_ch_bars(bars, cfg.channels);
+        size_t pcl = per_ch_left(bars, cfg.channels);
+        size_t pcr = per_ch_right(bars, cfg.channels);
         double sens = cfg.sensitivity / 100.0;
-        for (size_t i = 0; i < per_ch; i++)
+        for (size_t i = 0; i < pcl; i++)
             heights[0][i] *= sens;
         if (cfg.channels > 1)
-            for (size_t i = 0; i < per_ch; i++)
+            for (size_t i = 0; i < pcr; i++)
                 heights[1][i] *= sens;
 
         size_t olen = 0;
@@ -311,7 +322,7 @@ int main(int argc, char **argv) {
             settings_draw(st, &cfg, out, &olen, (size_t)1 << 20, rows,
                           panel_width_for(cols));
         if (cfg.channels > 1)
-            renderer_draw_stereo(&rnd, heights[0], heights[1], per_ch, out,
+            renderer_draw_stereo(&rnd, heights[0], heights[1], pcl, out,
                                  &olen, (size_t)1 << 20);
         else
             renderer_draw(&rnd, heights[0], out, &olen, (size_t)1 << 20);
