@@ -70,7 +70,7 @@ void renderer_free(renderer_t *r) {
 }
 
 static void draw_bars(renderer_t *r, const double *values, size_t nbars,
-                      size_t x_start, size_t region_w, char *out,
+                      size_t x_start, size_t region_w, bool reversed, char *out,
                       size_t *out_len, size_t cap) {
     unsigned rows = r->rows;
     size_t cols = r->cols;
@@ -83,7 +83,8 @@ static void draw_bars(renderer_t *r, const double *values, size_t nbars,
         step = 1;
 
     for (size_t b = 0; b < nbars; b++) {
-        double v = values[b];
+        size_t vi = reversed ? (nbars - 1 - b) : b;
+        double v = values[vi];
         if (!(v > 0.0))
             v = 0.0;
         else if (v > 1.0)
@@ -152,7 +153,7 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
     size_t region = r->cols - r->x_off;
     if (region == 0)
         return;
-    draw_bars(r, values, r->num_bars, r->x_off, region, out, out_len, cap);
+    draw_bars(r, values, r->num_bars, r->x_off, region, false, out, out_len, cap);
 }
 
 void renderer_draw_stereo(renderer_t *r, const double *left, const double *right,
@@ -161,6 +162,7 @@ void renderer_draw_stereo(renderer_t *r, const double *left, const double *right
     if (region == 0)
         return;
     size_t half = region / 2;
-    draw_bars(r, left, per_ch, r->x_off, half, out, out_len, cap);
-    draw_bars(r, right, per_ch, r->x_off + half, region - half, out, out_len, cap);
+    draw_bars(r, left, per_ch, r->x_off, half, true, out, out_len, cap);
+    draw_bars(r, right, per_ch, r->x_off + half, region - half, false, out,
+              out_len, cap);
 }
