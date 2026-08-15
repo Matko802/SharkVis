@@ -14,18 +14,64 @@ Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https:
 
 ## Building
 
-Dependencies: a C11 compiler, `make`, `pkg-config`, and the PulseAudio
-development headers (`libpulse-simple`).
+SharkVis is a plain C11 program built with `make` and only one runtime
+dependency (PulseAudio / PipeWire audio). It works on any Linux distro.
+
+### 1. Install the build dependencies
+
+You need a C11 compiler (`gcc` or `clang`), `make`, `pkg-config`, and the
+PulseAudio development headers (`libpulse-simple`). Install them with your
+distro's package manager:
+
+| Distro family      | Command                                                                 |
+| ------------------ | ----------------------------------------------------------------------- |
+| Debian / Ubuntu    | `sudo apt install build-essential pkg-config libpulse-dev`              |
+| Arch / Manjaro     | `sudo pacman -S base-devel libpulse`                                    |
+| Fedora             | `sudo dnf install gcc make pkgconf-pkg-config pulseaudio-libs-devel`    |
+| openSUSE           | `sudo zypper install gcc make pkg-config libpulse-devel`                |
+| Void               | `sudo xbps-install base-devel pkg-config pulseaudio-devel`              |
+| Alpine             | `sudo apk add build-base pkgconfig libpulse-dev`                        |
+| Gentoo             | `sudo emerge -av sys-devel/gcc sys-devel/make sys-devel/pkgconf media-libs/libpulse` |
+
+On PipeWire systems (the default on Fedora, openSUSE, and Arch since 2023)
+the PulseAudio compatibility layer is provided by the same `libpulse` /
+`libpulse-dev` packages, so nothing extra is needed.
+
+You can verify the headers are present before building:
+
+```sh
+pkg-config --exists libpulse-simple && echo "ok"
+```
+
+### 2. Build and install
 
 ```sh
 make
-sudo make install
+sudo make install        # installs to /usr/local/bin/sharkvis
 ```
-You can also override the prefix:
+
+To install somewhere else, override the prefix:
 
 ```sh
 make PREFIX=$HOME/.local install
 ```
+
+For packaging (rpm/deb/arch), install into a staging directory:
+
+```sh
+make DESTDIR=$pkgdir PREFIX=/usr install
+```
+
+### 3. Run it
+
+```sh
+sharkvis
+```
+
+To use the default PulseAudio sink (what's currently playing), just launch it.
+It also works as a monitor of your microphone / line-in source; see the config
+below to change the input. Audio must be playing on the system for the
+visualizer to move.
 
 ## Usage
 
