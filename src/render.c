@@ -78,7 +78,6 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->lj_filled = 0;
     r->lj_spc = 1;
     r->stereo_in = false;
-    r->lj_draw_last = 0;
     r->lj_glow = NULL;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
@@ -115,7 +114,6 @@ void renderer_set_mode(renderer_t *r, render_mode m) {
     if (m == RENDER_LISSAJOUS) {
         if (r->lj_glow)
             memset(r->lj_glow, 0, (size_t)r->rows * r->cols);
-        r->lj_draw_last = r->lj_pos;
     }
 }
 
@@ -156,7 +154,6 @@ void renderer_set_wave(renderer_t *r, unsigned sample_rate) {
     r->lj_pos = 0;
     r->lj_filled = 0;
     r->lj_spc = lj_spc;
-    r->lj_draw_last = 0;
 }
 
 void renderer_feed(renderer_t *r, const double *left, const double *right,
@@ -394,10 +391,10 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
         }
     }
 
-    size_t n = (r->lj_pos + r->lj_cap - r->lj_draw_last) % r->lj_cap;
-    if (n > 32768)
-        n = 32768;
-    if (n > 0) {
+    size_t n = r->lj_filled;
+    if (n > r->lj_cap)
+        n = r->lj_cap;
+    if (n > 1) {
         size_t delay = r->lj_spc ? r->lj_spc : 1;
         double cx = x_start + (region_w - 1) * 0.5;
         double cy = (rows - 1) * 0.5;
@@ -405,7 +402,7 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
         double syc = (rows - 1) * 0.5;
         long px = -1, py = -1;
         for (i = 0; i < n; i++) {
-            size_t idx = (r->lj_draw_last + i) % r->lj_cap;
+            size_t idx = (r->lj_pos + r->lj_cap - n + i) % r->lj_cap;
             double L = r->lj_l[idx];
             double R = r->lj_r[idx];
             if (!r->stereo_in) {
@@ -434,7 +431,6 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
             px = xx;
             py = yy;
         }
-        r->lj_draw_last = r->lj_pos;
     }
 
     for (unsigned y = 0; y < rows; y++) {

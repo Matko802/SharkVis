@@ -35,7 +35,6 @@ typedef struct {
     size_t lj_filled;
     size_t lj_spc;
     bool stereo_in;
-    size_t lj_draw_last;
     unsigned char *lj_glow;
 } renderer_t;
 
