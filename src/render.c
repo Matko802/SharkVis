@@ -56,9 +56,6 @@ static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
 typedef struct {
     bool active;
     char col[40];
-    bool cur_set;
-    long cur_r;
-    long cur_c;
 } color_state;
 
 static void emit_color(const renderer_t *r, unsigned from_bottom, color_state *st,
@@ -72,27 +69,8 @@ static void emit_color(const renderer_t *r, unsigned from_bottom, color_state *s
     st->active = true;
 }
 
-static void seek_cell(color_state *st, long r, long c, char *out,
-                      size_t *out_len, size_t cap) {
-    if (!st->cur_set) {
-        write_esc(out, out_len, cap, "\x1b[%ld;%ldH", r + 1, c + 1);
-    } else {
-        long dc = c - (st->cur_c + 1);
-        long dr = r - st->cur_r;
-        if (dr > 0)
-            write_esc(out, out_len, cap, "\x1b[%ldB", dr);
-        else if (dr < 0)
-            write_esc(out, out_len, cap, "\x1b[%ldA", -dr);
-        if (dc == -1)
-            write_esc(out, out_len, cap, "\b");
-        else if (dc > 0)
-            write_esc(out, out_len, cap, "\x1b[%ldC", dc);
-        else if (dc < -1)
-            write_esc(out, out_len, cap, "\x1b[%ldD", -dc);
-    }
-    st->cur_r = r;
-    st->cur_c = c;
-    st->cur_set = true;
+static void seek_cell(long r, long c, char *out, size_t *out_len, size_t cap) {
+    write_esc(out, out_len, cap, "\x1b[%ld;%ldH", r + 1, c + 1);
 }
 
 static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *st,
@@ -101,7 +79,7 @@ static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *
     if ((unsigned char)gi == r->prev[idx])
         return;
     r->prev[idx] = (unsigned char)gi;
-    seek_cell(st, (long)y, (long)x, out, out_len, cap);
+    seek_cell((long)y, (long)x, out, out_len, cap);
     if (gi == 0) {
         write_esc(out, out_len, cap, " ");
     } else {
