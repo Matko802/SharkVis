@@ -79,7 +79,11 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
     if (region == 0)
         return;
 
-    size_t bw = r->bar_width;
+    size_t bw = r->bar_width ? r->bar_width : 1;
+    size_t step = bw + r->bar_spacing;
+    if (step == 0)
+        step = 1;
+
     for (size_t b = 0; b < r->num_bars; b++) {
         double v = values[b];
         if (!(v > 0.0))
@@ -88,7 +92,7 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
             v = 1.0;
         double h = v * (double)rows;
 
-        size_t base = b * (bw + r->bar_spacing);
+        size_t base = b * step;
         if (base >= region)
             break;
 
@@ -115,11 +119,31 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
                 r->prev[idx] = (unsigned char)gi;
 
                 const char *color = r->gradient ? color_for(fb, rows) : "\x1b[37m";
-                int n = snprintf(out + *out_len, cap - *out_len, "\x1b[%u;%zuH%s%s\x1b[0m",
-                                 y + 1, col + 1, color, GLYPHS[gi]);
+                int n = snprintf(out + *out_len, cap - *out_len,
+                                 "\x1b[%u;%zuH%s%s\x1b[0m", y + 1, col + 1, color,
+                                 GLYPHS[gi]);
                 if (n > 0)
                     *out_len += (size_t)n;
             }
+        }
+    }
+
+    /* erase cells that were drawn before but are no longer part of a bar */
+    for (size_t col = 0; col < region; col++) {
+        size_t base = col / step;
+        bool in_bar = base < r->num_bars && col - base * step < bw;
+        if (in_bar)
+            continue;
+        size_t abs_col = r->x_off + col;
+        for (unsigned y = 0; y < rows; y++) {
+            size_t idx = (size_t)y * cols + abs_col;
+            if (r->prev[idx] == 0xFF)
+                continue;
+            r->prev[idx] = 0;
+            int n = snprintf(out + *out_len, cap - *out_len, "\x1b[%u;%zuH ",
+                             y + 1, abs_col + 1);
+            if (n > 0)
+                *out_len += (size_t)n;
         }
     }
 }
