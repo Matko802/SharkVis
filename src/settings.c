@@ -96,13 +96,13 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         break;
     }
     case S_FPS: {
-        long v = clamp_l((long)c->framerate + dir * 5, 1, 240);
+        long v = clamp_l((long)c->framerate + dir * 5, 5, 240);
         if ((unsigned)v != c->framerate)
             c->framerate = (unsigned)v;
         break;
     }
     case S_SENS: {
-        double v = clamp_d(c->sensitivity + dir * 5.0, 1.0, 200.0);
+        double v = clamp_d(c->sensitivity + dir * 5.0, 5.0, 200.0);
         if (v != c->sensitivity)
             c->sensitivity = v;
         break;
@@ -124,9 +124,9 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         break;
     }
     case S_LOW: {
-        long v = clamp_l((long)c->lower_cutoff + dir * 25, 1, 20000);
+        long v = clamp_l((long)c->lower_cutoff + dir * 25, 25, 20000);
         if (v >= (long)c->higher_cutoff)
-            v = (long)c->higher_cutoff - 1;
+            v = (long)(c->higher_cutoff - 1) / 25 * 25;
         if ((unsigned)v != c->lower_cutoff) {
             c->lower_cutoff = (unsigned)v;
             *changed |= CH_DSP;
@@ -134,9 +134,9 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         break;
     }
     case S_HIGH: {
-        long v = clamp_l((long)c->higher_cutoff + dir * 500, 50, 24000);
+        long v = clamp_l((long)c->higher_cutoff + dir * 500, 500, 24000);
         if (v <= (long)c->lower_cutoff)
-            v = (long)c->lower_cutoff + 1;
+            v = ((long)c->lower_cutoff / 500 + 1) * 500;
         if ((unsigned)v != c->higher_cutoff) {
             c->higher_cutoff = (unsigned)v;
             *changed |= CH_DSP;
@@ -191,6 +191,12 @@ void settings_key(settings_ui *s, srk_config *cfg, int key, unsigned *changed) {
     case '+':
     case '=':
         adjust(cfg, s->sel, +1, changed);
+        break;
+    case 'r':
+    case 'R':
+        free(cfg->source);
+        config_default(cfg);
+        *changed |= CH_LAYOUT | CH_DSP | CH_AUDIO;
         break;
     default:
         break;
@@ -271,8 +277,8 @@ void settings_draw(const settings_ui *s, const srk_config *cfg, char *out,
     (void)rows;
     size_t n = *out_len;
     panel_row(out, &n, cap, 1, panel_width, "SharkVis settings", NULL, false);
-    panel_row(out, &n, cap, 2, panel_width, "←, ↑, ↓, → controls", NULL, false);
-    panel_row(out, &n, cap, 3, panel_width, "g = close, q = quit", NULL, false);
+    panel_row(out, &n, cap, 2, panel_width, "←, ↑, ↓, → = adjust", NULL, false);
+    panel_row(out, &n, cap, 3, panel_width, "g = close, q = quit, r = reset", NULL, false);
     unsigned y = 6;
     for (int id = 0; id < S_COUNT; id++) {
         char val[32];
