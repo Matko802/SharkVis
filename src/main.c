@@ -31,16 +31,16 @@ static void usage(void) {
 }
 
 static int panel_width_for(unsigned cols) {
-    int pw = (int)(cols / 3);
+    unsigned pw = cols / 3;
     if (pw < 28)
         pw = 28;
     if (pw > 44)
         pw = 44;
     if (pw >= cols)
-        pw = cols > 2 ? (int)cols / 2 : 1;
+        pw = cols > 2 ? cols / 2 : 1;
     if (pw < 1)
         pw = 1;
-    return pw;
+    return (int)pw;
 }
 
 static void apply_settings(dsp_t *dsp, renderer_t *rnd, audio_t *audio,
