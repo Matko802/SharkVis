@@ -14,18 +14,13 @@ Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https:
 
 ## Building
 
-Works on any Linux distro. Dependencies are handled for you — `make deps`
-detects your package manager (Debian/Ubuntu, Arch, Fedora, openSUSE, Void,
-Alpine, Gentoo) and installs the compiler, `pkg-config`, and the PulseAudio /
-PipeWire dev headers. On PipeWire systems (Fedora, openSUSE, Arch since 2023)
-the same package provides the PulseAudio compatibility layer, so nothing extra
-is needed.
+`make` required for building
 
 ```sh
 git clone https://github.com/Matko802/SharkVis.git
 cd SharkVis
-make deps        # installs build dependencies (needs sudo)
-make             # builds ./sharkvis
+make deps      
+make           
 sudo make install
 ```
 
