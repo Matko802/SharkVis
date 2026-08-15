@@ -67,7 +67,7 @@ static void apply_settings(dsp_t *dsp, renderer_t *rnd, audio_t *audio,
 
     if (new_bars != *bars) {
         free(*heights);
-        *heights = malloc(new_bars * sizeof **heights);
+        *heights = calloc(new_bars, sizeof **heights);
         *bars = new_bars;
         renderer_resize(rnd, rows, cols, new_bars);
     }
@@ -77,6 +77,9 @@ static void apply_settings(dsp_t *dsp, renderer_t *rnd, audio_t *audio,
     rnd->gradient = cfg->gradient;
     renderer_set_offset(rnd, x_off);
     renderer_clear(rnd);
+
+    if (chmask)
+        memset(*heights, 0, *bars * sizeof **heights);
 
     if (audio_reinit) {
         audio_stop(audio);
