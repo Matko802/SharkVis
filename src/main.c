@@ -40,6 +40,13 @@ static void usage(void) {
     printf("  g - settings, q - quit\n");
 }
 
+static void print_version(void) {
+#ifndef VERSION
+#define VERSION "unknown"
+#endif
+    printf("sharkvis %s\n", VERSION);
+}
+
 static int panel_width_for(unsigned cols) {
     unsigned pw = cols / 3;
     if (pw < 28)
@@ -144,6 +151,9 @@ int main(int argc, char **argv) {
             cfgpath = argv[++i];
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             usage();
+            return 0;
+        } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
+            print_version();
             return 0;
         } else {
             fprintf(stderr, "SharkVis: unknown option '%s'\n", argv[i]);

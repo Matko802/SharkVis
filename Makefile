@@ -1,6 +1,8 @@
 CC ?= cc
+VERSION ?= 0.1.0
 CFLAGS ?= -O2
 CFLAGS += -std=c11 -Wall -Wextra -pedantic
+CPPFLAGS += -DVERSION=\"$(VERSION)\"
 PKG_CONFIG ?= pkg-config
 CPPFLAGS += -D_POSIX_C_SOURCE=200809L
 CPPFLAGS += $(shell $(PKG_CONFIG) --cflags libpulse-simple)

@@ -24,6 +24,7 @@
             mainProgram = "sharkvis";
             description = "Terminal audio spectrum analyzer";
             homepage = "https://github.com/Matko802/SharkVis";
+            license = pkgs.lib.licenses.mit;
             platforms = pkgs.lib.platforms.linux;
           };
         };
