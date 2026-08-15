@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "term.h"
 
@@ -21,6 +22,10 @@ typedef enum {
     S_CH,
     S_COUNT,
 } sid;
+
+#define S_RESET S_COUNT
+#define S_ROWS (S_COUNT + 1)
+#define CONFIRM_TIMEOUT_MS 5000
 
 static const char *const LABELS[S_COUNT] = {
     "bars",
@@ -59,7 +64,15 @@ static double clamp_d(double v, double lo, double hi) {
 
 struct settings_ui {
     int sel;
+    bool confirm_reset;
+    long confirm_deadline_ms;
 };
+
+static long now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+}
 
 settings_ui *settings_new(void) {
     return calloc(1, sizeof(settings_ui));
@@ -175,28 +188,42 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
     }
 }
 
+static void handle_reset(settings_ui *s, srk_config *cfg, unsigned *changed) {
+    if (!s->confirm_reset) {
+        s->confirm_reset = true;
+        s->confirm_deadline_ms = now_ms() + CONFIRM_TIMEOUT_MS;
+        return;
+    }
+    s->confirm_reset = false;
+    free(cfg->source);
+    config_default(cfg);
+    *changed |= CH_LAYOUT | CH_DSP | CH_AUDIO;
+}
+
 void settings_key(settings_ui *s, srk_config *cfg, int key, unsigned *changed) {
     switch (key) {
     case KEY_UP:
-        s->sel = (s->sel + S_COUNT - 1) % S_COUNT;
+        s->sel = (s->sel + S_ROWS - 1) % S_ROWS;
+        s->confirm_reset = false;
         break;
     case KEY_DOWN:
-        s->sel = (s->sel + 1) % S_COUNT;
+        s->sel = (s->sel + 1) % S_ROWS;
+        s->confirm_reset = false;
         break;
     case KEY_LEFT:
     case '-':
-        adjust(cfg, s->sel, -1, changed);
+        if (s->sel == S_RESET)
+            handle_reset(s, cfg, changed);
+        else
+            adjust(cfg, s->sel, -1, changed);
         break;
     case KEY_RIGHT:
     case '+':
     case '=':
-        adjust(cfg, s->sel, +1, changed);
-        break;
-    case 'r':
-    case 'R':
-        free(cfg->source);
-        config_default(cfg);
-        *changed |= CH_LAYOUT | CH_DSP | CH_AUDIO;
+        if (s->sel == S_RESET)
+            handle_reset(s, cfg, changed);
+        else
+            adjust(cfg, s->sel, +1, changed);
         break;
     default:
         break;
@@ -249,7 +276,7 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
 }
 
 static void panel_row(char *out, size_t *n, size_t cap, unsigned y, int pw,
-                      const char *label, const char *val, bool hi) {
+                      const char *label, const char *val, const char *style) {
     char text[80];
     int len;
     if (val) {
@@ -267,23 +294,32 @@ static void panel_row(char *out, size_t *n, size_t cap, unsigned y, int pw,
     if (len > pw)
         len = pw;
     int k = snprintf(out + *n, cap - *n, "\x1b[%u;1H%s%.*s\x1b[0m", y,
-                     hi ? "\x1b[7m" : "", len, text);
+                     style ? style : "", len, text);
     if (k > 0)
         *n += (size_t)k;
 }
 
-void settings_draw(const settings_ui *s, const srk_config *cfg, char *out,
+void settings_draw(settings_ui *s, const srk_config *cfg, char *out,
                    size_t *out_len, size_t cap, unsigned rows, int panel_width) {
     (void)rows;
+    if (s->confirm_reset && now_ms() > s->confirm_deadline_ms)
+        s->confirm_reset = false;
     size_t n = *out_len;
-    panel_row(out, &n, cap, 1, panel_width, "SharkVis settings", NULL, false);
-    panel_row(out, &n, cap, 2, panel_width, "←, ↑, ↓, → = adjust", NULL, false);
-    panel_row(out, &n, cap, 3, panel_width, "g = close, q = quit, r = reset", NULL, false);
+    panel_row(out, &n, cap, 1, panel_width, "SharkVis settings", NULL, NULL);
+    panel_row(out, &n, cap, 2, panel_width, "←, ↑, ↓, → = adjust", NULL, NULL);
+    panel_row(out, &n, cap, 3, panel_width, "g = close, q = quit", NULL, NULL);
     unsigned y = 6;
     for (int id = 0; id < S_COUNT; id++) {
         char val[32];
         format_value(cfg, id, val, sizeof val);
-        panel_row(out, &n, cap, y++, panel_width, LABELS[id], val, id == s->sel);
+        panel_row(out, &n, cap, y++, panel_width, LABELS[id], val,
+                  id == s->sel ? "\x1b[7m" : NULL);
     }
+    if (s->confirm_reset)
+        panel_row(out, &n, cap, y, panel_width, "Are you sure?", "press → again",
+                  "\x1b[41m\x1b[97m");
+    else
+        panel_row(out, &n, cap, y, panel_width, "reset to defaults", "press →",
+                  s->sel == S_RESET ? "\x1b[7m" : NULL);
     *out_len = n;
 }
