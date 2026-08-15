@@ -188,15 +188,15 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         break;
     }
     case S_MODE: {
-        static const char *const MODES[] = { "bars", "wave" };
+        static const char *const MODES[] = { "bars", "wave", "lissajous" };
         int idx = 0;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 3; i++) {
             if (c->mode && strcmp(c->mode, MODES[i]) == 0) {
                 idx = i;
                 break;
             }
         }
-        idx = (idx + 1) % 2;
+        idx = (idx + 1) % 3;
         if (!c->mode || strcmp(c->mode, MODES[idx]) != 0) {
             free(c->mode);
             c->mode = strdup(MODES[idx]);

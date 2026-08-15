@@ -7,6 +7,7 @@
 typedef enum {
     RENDER_BARS,
     RENDER_WAVE,
+    RENDER_LISSAJOUS,
 } render_mode;
 
 typedef struct {
@@ -27,6 +28,18 @@ typedef struct {
     size_t wave_pos;
     size_t wave_filled;
     size_t wave_spc;
+    double *lj_l;
+    double *lj_r;
+    size_t lj_cap;
+    size_t lj_pos;
+    size_t lj_filled;
+    size_t lj_spc;
+    bool stereo_in;
+    long *lj_trace_x;
+    long *lj_trace_y;
+    size_t lj_trace_n;
+    size_t lj_trace_cap;
+    double lj_angle;
 } renderer_t;
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,
