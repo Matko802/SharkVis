@@ -266,6 +266,8 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
         else if (v > 1.0)
             v = 1.0;
         double h = v * (double)rows;
+        if (h < 1.0)
+            h = 0.1;
 
         size_t base = b * step;
         if (base >= region_w)
