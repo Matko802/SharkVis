@@ -25,6 +25,14 @@ static void on_winch(int sig) {
     g_resize = 1;
 }
 
+static void on_fatal(int sig) {
+    static const char restore[] = "\x1b[?25h\x1b[0m\x1b[2J\x1b[H";
+    ssize_t r = write(1, restore, sizeof restore - 1);
+    (void)r;
+    term_raw_restore(0);
+    _exit(128 + sig);
+}
+
 static void usage(void) {
     printf("usage: sharkvis [-p config_file]\n");
     printf("  g - settings, q - quit\n");
@@ -215,6 +223,14 @@ int main(int argc, char **argv) {
     memset(&win, 0, sizeof win);
     win.sa_handler = on_winch;
     sigaction(SIGWINCH, &win, NULL);
+    struct sigaction fatal;
+    memset(&fatal, 0, sizeof fatal);
+    fatal.sa_handler = on_fatal;
+    sigaction(SIGSEGV, &fatal, NULL);
+    sigaction(SIGABRT, &fatal, NULL);
+    sigaction(SIGBUS, &fatal, NULL);
+    sigaction(SIGFPE, &fatal, NULL);
+    sigaction(SIGILL, &fatal, NULL);
 
     printf("\x1b[2J\x1b[H\x1b[?25l");
     fflush(stdout);
@@ -358,7 +374,7 @@ int main(int argc, char **argv) {
     if (!config_save(&cfg, save_path))
         fprintf(stderr, "SharkVis: could not save config to %s\n", save_path);
 
-    printf("\x1b[?25h\x1b[0m\x1b[J");
+    printf("\x1b[?25h\x1b[0m\x1b[2J\x1b[H");
     fflush(stdout);
     term_raw_restore(0);
 

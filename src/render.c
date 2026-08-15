@@ -1,6 +1,7 @@
 #include "render.h"
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,22 @@ static const char *const GLYPHS[9] = {
     "\xe2\x96\x87", /* ▇ */
     "\xe2\x96\x88", /* █ */
 };
+
+static void write_esc(char *out, size_t *olen, size_t cap, const char *fmt, ...) {
+    if (*olen >= cap)
+        return;
+    size_t room = cap - *olen;
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(out + *olen, room, fmt, ap);
+    va_end(ap);
+    if (n < 0)
+        return;
+    if ((size_t)n < room)
+        *olen += (size_t)n;
+    else
+        *olen = cap;
+}
 
 static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
                       char *buf, size_t n) {
@@ -196,11 +213,8 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
 
                 char colr[40];
                 bar_color(r, fb, rows, colr, sizeof colr);
-                int n = snprintf(out + *out_len, cap - *out_len,
-                                 "\x1b[%u;%zuH%s%s\x1b[0m", y + 1, col + 1, colr,
-                                 GLYPHS[gi]);
-                if (n > 0)
-                    *out_len += (size_t)n;
+                write_esc(out, out_len, cap, "\x1b[%u;%zuH%s%s\x1b[0m", y + 1,
+                          col + 1, colr, GLYPHS[gi]);
             }
         }
     }
@@ -216,10 +230,7 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
             if (r->prev[idx] == 0xFF)
                 continue;
             r->prev[idx] = 0;
-            int n = snprintf(out + *out_len, cap - *out_len, "\x1b[%u;%zuH ",
-                             y + 1, abs_col + 1);
-            if (n > 0)
-                *out_len += (size_t)n;
+            write_esc(out, out_len, cap, "\x1b[%u;%zuH ", y + 1, abs_col + 1);
         }
     }
 }
@@ -231,18 +242,12 @@ static void draw_cell(renderer_t *r, unsigned y, size_t x, int gi, char *out,
         return;
     r->prev[idx] = (unsigned char)gi;
     if (gi == 0) {
-        int n = snprintf(out + *out_len, cap - *out_len, "\x1b[%u;%zuH ",
-                         y + 1, x + 1);
-        if (n > 0)
-            *out_len += (size_t)n;
+        write_esc(out, out_len, cap, "\x1b[%u;%zuH ", y + 1, x + 1);
     } else {
         char colr[40];
         bar_color(r, r->rows - 1 - y, r->rows, colr, sizeof colr);
-        int n = snprintf(out + *out_len, cap - *out_len,
-                         "\x1b[%u;%zuH%s%s\x1b[0m", y + 1, x + 1, colr,
-                         GLYPHS[gi]);
-        if (n > 0)
-            *out_len += (size_t)n;
+        write_esc(out, out_len, cap, "\x1b[%u;%zuH%s%s\x1b[0m", y + 1, x + 1,
+                  colr, GLYPHS[gi]);
     }
 }
 

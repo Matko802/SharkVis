@@ -1,5 +1,6 @@
 #include "settings.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -328,6 +329,22 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
     }
 }
 
+static void write_esc(char *out, size_t *n, size_t cap, const char *fmt, ...) {
+    if (*n >= cap)
+        return;
+    size_t room = cap - *n;
+    va_list ap;
+    va_start(ap, fmt);
+    int k = vsnprintf(out + *n, room, fmt, ap);
+    va_end(ap);
+    if (k < 0)
+        return;
+    if ((size_t)k < room)
+        *n += (size_t)k;
+    else
+        *n = cap;
+}
+
 static void panel_row(char *out, size_t *n, size_t cap, unsigned y, int pw,
                       const char *label, const char *val, const char *style) {
     char text[80];
@@ -360,15 +377,10 @@ static void panel_row(char *out, size_t *n, size_t cap, unsigned y, int pw,
         p += seq;
     }
 
-    int k = snprintf(out + *n, cap - *n, "\x1b[%u;1H%s%.*s\x1b[0m", y,
-                     style ? style : "", emit, text);
-    if (k > 0)
-        *n += (size_t)k;
-    for (int i = vis; i < pw; i++) {
-        int m = snprintf(out + *n, cap - *n, " ");
-        if (m > 0)
-            *n += (size_t)m;
-    }
+    write_esc(out, n, cap, "\x1b[%u;1H%s%.*s\x1b[0m", y, style ? style : "",
+              emit, text);
+    for (int i = vis; i < pw; i++)
+        write_esc(out, n, cap, " ");
 }
 
 void settings_draw(settings_ui *s, const srk_config *cfg, char *out,
