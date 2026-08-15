@@ -106,6 +106,7 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
     rnd->bar_spacing = cfg->bar_spacing;
     rnd->gradient = cfg->gradient;
     apply_colors(rnd, cfg);
+    renderer_set_mode(rnd, renderer_mode_parse(cfg->mode ? cfg->mode : "bars"));
     renderer_set_offset(rnd, x_off);
     renderer_clear(rnd);
 
@@ -220,6 +221,7 @@ int main(int argc, char **argv) {
     renderer_t rnd;
     renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars, cfg.gradient);
     apply_colors(&rnd, &cfg);
+    renderer_set_mode(&rnd, renderer_mode_parse(cfg.mode ? cfg.mode : "bars"));
 
     double *heights[2];
     heights[0] = malloc(bars * sizeof *heights[0]);

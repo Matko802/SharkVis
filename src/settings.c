@@ -21,6 +21,7 @@ typedef enum {
     S_COL,
     S_GLO,
     S_GHI,
+    S_MODE,
     S_RATE,
     S_CH,
     S_COUNT,
@@ -44,6 +45,7 @@ static const char *const LABELS[S_COUNT] = {
     "bar color",
     "gradient low",
     "gradient high",
+    "visualizer",
     "sample rate",
     "channels",
 };
@@ -184,6 +186,16 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         *changed |= CH_LAYOUT;
         break;
     }
+    case S_MODE: {
+        bool is_ball = c->mode && strcmp(c->mode, "ball") == 0;
+        const char *next = is_ball ? "bars" : "ball";
+        if (!c->mode || strcmp(c->mode, next) != 0) {
+            free(c->mode);
+            c->mode = strdup(next);
+            *changed |= CH_LAYOUT;
+        }
+        break;
+    }
     case S_RATE: {
         int idx = 0;
         for (int i = 0; i < RATES_N; i++) {
@@ -273,6 +285,9 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
         snprintf(buf, n, "%s", nm ? nm : (hx ? hx : "?"));
         break;
     }
+    case S_MODE:
+        snprintf(buf, n, "%s", c->mode ? c->mode : "bars");
+        break;
     case S_NOISE:
         snprintf(buf, n, "%.2f", c->noise_reduction);
         break;

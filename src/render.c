@@ -48,6 +48,8 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->color = 0xffffffu;
     r->grad_lo = 0xff0000u;
     r->grad_hi = 0x00ff00u;
+    r->mode = RENDER_BARS;
+    r->ball_amp = 0.0;
     r->x_off = 0;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
@@ -69,6 +71,19 @@ void renderer_set_offset(renderer_t *r, size_t x_off) {
     free(r->prev);
     r->prev = malloc((size_t)r->rows * r->cols);
     memset(r->prev, 0xFF, (size_t)r->rows * r->cols);
+}
+
+void renderer_set_mode(renderer_t *r, render_mode m) {
+    if (r->mode == m)
+        return;
+    r->mode = m;
+    renderer_clear(r);
+}
+
+render_mode renderer_mode_parse(const char *name) {
+    if (name && strcmp(name, "ball") == 0)
+        return RENDER_BALL;
+    return RENDER_BARS;
 }
 
 void renderer_clear(renderer_t *r) {
@@ -169,13 +184,100 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
     }
 }
 
+static double mean_bass(const double *v, size_t n) {
+    if (!v || n == 0)
+        return 0.0;
+    size_t m = n / 4;
+    if (m == 0)
+        m = n;
+    if (m > n)
+        m = n;
+    double s = 0.0;
+    for (size_t i = 0; i < m; i++)
+        s += v[i];
+    return s / (double)m;
+}
+
+static void draw_ball(renderer_t *r, const double *left, const double *right,
+                      size_t nbars, size_t x_start, size_t region_w,
+                      char *out, size_t *out_len, size_t cap) {
+    unsigned rows = r->rows;
+    size_t cols = r->cols;
+    if (rows == 0 || region_w == 0)
+        return;
+
+    double amp = mean_bass(left, nbars);
+    double other = mean_bass(right, nbars);
+    if (other > amp)
+        amp = other;
+    r->ball_amp += (amp - r->ball_amp) * 0.35;
+    amp = r->ball_amp;
+    if (amp < 0.0)
+        amp = 0.0;
+    else if (amp > 1.0)
+        amp = 1.0;
+
+    double cx = (double)x_start + (double)region_w / 2.0;
+    double cy = (double)(rows - 1) * 0.55;
+    double max_xr = (double)region_w / 2.0 - 1.0;
+    double by_rows = (double)rows * 0.45;
+    if (by_rows < max_xr)
+        max_xr = by_rows;
+    if (max_xr < 2.0)
+        max_xr = 2.0;
+    double xr = max_xr * (0.3 + 0.7 * amp);
+    double yr = xr / 2.0;
+
+    for (unsigned y = 0; y < rows; y++) {
+        double dy = ((double)y - cy) / yr;
+        for (size_t col = 0; col < region_w; col++) {
+            size_t x = x_start + col;
+            double dx = ((double)x - cx) / xr;
+            double d = dx * dx + dy * dy;
+            size_t idx = (size_t)y * cols + x;
+            unsigned char prev = r->prev[idx];
+            int gi;
+            if (d > 1.0) {
+                gi = 0;
+            } else {
+                double shade = 1.0 - sqrt(d);
+                gi = (int)(shade * 8.0 + 0.5);
+                if (gi < 1)
+                    gi = 1;
+                if (gi > 8)
+                    gi = 8;
+            }
+            if (gi == prev)
+                continue;
+            r->prev[idx] = (unsigned char)gi;
+            if (gi == 0) {
+                int n = snprintf(out + *out_len, cap - *out_len, "\x1b[%u;%zuH ",
+                                 y + 1, x + 1);
+                if (n > 0)
+                    *out_len += (size_t)n;
+            } else {
+                char colr[40];
+                bar_color(r, rows - 1 - y, rows, colr, sizeof colr);
+                int n = snprintf(out + *out_len, cap - *out_len,
+                                 "\x1b[%u;%zuH%s%s\x1b[0m", y + 1, x + 1, colr,
+                                 GLYPHS[gi]);
+                if (n > 0)
+                    *out_len += (size_t)n;
+            }
+        }
+    }
+}
+
 void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_len,
                    size_t cap) {
     size_t region = r->cols - r->x_off;
     if (region == 0)
         return;
-    draw_bars(r, values, NULL, r->num_bars, r->num_bars, r->x_off, region, out,
-              out_len, cap);
+    if (r->mode == RENDER_BALL)
+        draw_ball(r, values, NULL, r->num_bars, r->x_off, region, out, out_len, cap);
+    else
+        draw_bars(r, values, NULL, r->num_bars, r->num_bars, r->x_off, region, out,
+                  out_len, cap);
 }
 
 void renderer_draw_stereo(renderer_t *r, const double *left, const double *right,
@@ -183,6 +285,9 @@ void renderer_draw_stereo(renderer_t *r, const double *left, const double *right
     size_t region = r->cols - r->x_off;
     if (region == 0)
         return;
-    draw_bars(r, left, right, r->num_bars, per_ch_l, r->x_off, region, out,
-              out_len, cap);
+    if (r->mode == RENDER_BALL)
+        draw_ball(r, left, right, r->num_bars, r->x_off, region, out, out_len, cap);
+    else
+        draw_bars(r, left, right, r->num_bars, per_ch_l, r->x_off, region, out,
+                  out_len, cap);
 }

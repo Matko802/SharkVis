@@ -130,6 +130,8 @@ void config_default(srk_config *c) {
     c->gradient_low = strdup("ff0000");
     free(c->gradient_high);
     c->gradient_high = strdup("00ff00");
+    free(c->mode);
+    c->mode = strdup("bars");
 }
 
 char *config_default_path(void) {
@@ -161,6 +163,7 @@ void config_free(srk_config *c) {
     free(c->color);
     free(c->gradient_low);
     free(c->gradient_high);
+    free(c->mode);
 }
 
 static void mkdir_p(const char *path) {
@@ -211,6 +214,8 @@ bool config_save(const srk_config *c, const char *path) {
     fprintf(f, "color = %s\n", c->color ? c->color : "ffffff");
     fprintf(f, "gradient_low = %s\n", c->gradient_low ? c->gradient_low : "ff0000");
     fprintf(f, "gradient_high = %s\n", c->gradient_high ? c->gradient_high : "00ff00");
+    fprintf(f, "\n[visualizer]\n");
+    fprintf(f, "mode = %s\n", c->mode ? c->mode : "bars");
 
     return fclose(f) == 0;
 }
@@ -309,6 +314,12 @@ bool config_load(srk_config *c, const char *path) {
                     free(c->gradient_high);
                     c->gradient_high = strdup(tmp);
                 }
+            }
+        } else if (strcmp(section, "visualizer") == 0) {
+            if (strcmp(key, "mode") == 0 &&
+                (strcmp(val, "bars") == 0 || strcmp(val, "ball") == 0)) {
+                free(c->mode);
+                c->mode = strdup(val);
             }
         }
     }
