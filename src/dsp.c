@@ -260,7 +260,7 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
         } else if (!silence) {
             d->sens *= 1.001;
             if (d->sens_init)
-                d->sens *= 1.1;
+                d->sens *= 2.0;
         }
     }
 }
