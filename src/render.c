@@ -91,6 +91,8 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
         else if (v > 1.0)
             v = 1.0;
         double h = v * (double)rows;
+        if (h < 1.0)
+            h = 0.1;
 
         size_t base = b * step;
         if (base >= region)
