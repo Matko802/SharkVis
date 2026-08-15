@@ -134,5 +134,4 @@ nix develop github:Matko802/sharkvis
 
 ## License
 
-This project is currently unlicensed. Contact the author if you wish to
-redistribute or reuse it.
+This project is released under the MIT License. See LICENSE.txt.
