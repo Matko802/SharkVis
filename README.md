@@ -135,7 +135,7 @@ nix run github:Matko802/SharkVis
 ### Development
 
 ```sh
-nix develop github:Matko802/SharkVis   # shell with build dependencies
+nix develop github:Matko802/SharkVis  
 ```
 
 ## License
