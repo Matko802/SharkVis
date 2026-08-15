@@ -32,7 +32,7 @@ void dsp_init(dsp_t *d, size_t number_of_bars, unsigned rate, bool autosens,
     d->rate = rate;
     d->autosens = autosens;
     d->noise_reduction = noise_reduction;
-    d->sens = 1.0;
+    d->sens = 100.0;
     d->sens_init = true;
     d->framerate = 75.0;
     d->frame_skip = 1;
