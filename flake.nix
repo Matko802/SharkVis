@@ -39,5 +39,10 @@
       });
 
       overlays.default = overlay;
+
+      devShells = forAllSystems (pkgs:
+        pkgs.mkShell {
+          buildInputs = [ pkgs.gcc pkgs.pkg-config pkgs.libpulseaudio ];
+        });
     };
 }

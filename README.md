@@ -1,0 +1,152 @@
+# SHRKVis
+
+A real-time audio spectrum analyzer for the terminal, inspired by
+[cava](https://github.com/karlstav/cava). Written in C, it captures the audio
+output of your machine via PulseAudio and renders animated spectrum bars with
+low-latency ANSI escapes, using per-cell diffing so only changed cells are
+redrawn.
+
+## Features
+
+- PulseAudio / PipeWire (via its PulseAudio compatibility layer) output monitoring
+- Smooth fall, peak-hold and noise reduction effects
+- Optional autosensitivity, manual sensitivity control, and adjustable cutoff frequencies
+- Fully interactive in-terminal settings panel
+- Gradient or monochrome bar colors
+- Config file support
+
+## Building
+
+Dependencies: a C11 compiler, `make`, `pkg-config`, and the PulseAudio
+development headers (`libpulse-simple`).
+
+```sh
+make
+sudo make install   # installs to /usr/local/bin/SHRKVis
+```
+
+You can also override the prefix:
+
+```sh
+make PREFIX=$HOME/.local install
+```
+
+## Usage
+
+```sh
+SHRKVis                # start with default config
+SHRKVis -p config.conf # use a specific config file
+SHRKVis -h             # show help
+```
+
+Keys:
+
+| Key               | Action                          |
+| ----------------- | ------------------------------- |
+| `g`               | open settings panel             |
+| `q` / `Ctrl-C`    | quit                            |
+| `up` / `down`     | select setting                  |
+| `left` / `right`  | adjust setting (applies live)   |
+| `g` / `Esc`       | close settings panel            |
+
+The config file is looked up in `$SHRKVIS_CONFIG`, then
+`~/.config/SHRKVis/config`, then `./config`. Example:
+
+```ini
+[general]
+bars = 40            ; 0 = auto fit to terminal width
+bar_width = 2
+bar_spacing = 1
+framerate = 60
+sensitivity = 100
+autosens = 1
+lower_cutoff_freq = 50
+higher_cutoff_freq = 8000
+
+[smoothing]
+noise_reduction = 0.2
+
+[input]
+source = auto
+sample_rate = 48000
+channels = 2
+
+[color]
+gradient = 0
+```
+
+## Nix flakes
+
+SHRKVis ships with its own flake, so you can pull it straight from GitHub.
+
+### As a flake input
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    shrkvis = {
+      url = "github:Matko802/SHRKVis";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { nixpkgs, shrkvis, ... }: {
+    packages.x86_64-linux.default = shrkvis.packages.x86_64-linux.default;
+  };
+}
+```
+
+### As an overlay
+
+The flake also exposes `overlays.default`, so you can enable it with
+`nixpkgs.overlays = [ shrkvis.overlays.default ];` and get `pkgs.SHRKVis`.
+
+A full NixOS example that pulls the flake in as both an overlay and a package:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    shrkvis = {
+      url = "github:Matko802/SHRKVis";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs =
+    { nixpkgs, shrkvis, ... }:
+    let
+      system = "x86_64-linux";
+    in
+    {
+      nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [
+          {
+            nixpkgs.overlays = [ shrkvis.overlays.default ];
+            environment.systemPackages = [ shrkvis.packages.${system}.default ];
+          }
+        ];
+      };
+    };
+}
+```
+
+### Standalone build from source
+
+```sh
+nix build github:Matko802/SHRKVis
+nix run github:Matko802/SHRKVis
+```
+
+### Development
+
+```sh
+nix develop github:Matko802/SHRKVis   # shell with build dependencies
+```
+
+## License
+
+This project is currently unlicensed. Contact the author if you wish to
+redistribute or reuse it.
