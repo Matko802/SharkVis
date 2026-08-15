@@ -317,7 +317,8 @@ bool config_load(srk_config *c, const char *path) {
             }
         } else if (strcmp(section, "visualizer") == 0) {
             if (strcmp(key, "mode") == 0 &&
-                (strcmp(val, "bars") == 0 || strcmp(val, "ball") == 0)) {
+                (strcmp(val, "bars") == 0 || strcmp(val, "ball") == 0 ||
+                 strcmp(val, "wave") == 0)) {
                 free(c->mode);
                 c->mode = strdup(val);
             }

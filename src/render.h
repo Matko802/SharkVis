@@ -7,6 +7,7 @@
 typedef enum {
     RENDER_BARS,
     RENDER_BALL,
+    RENDER_WAVE,
 } render_mode;
 
 typedef struct {
@@ -23,6 +24,11 @@ typedef struct {
     double ball_amp;
     size_t x_off;
     unsigned char *prev;
+    double *wave_buf;
+    size_t wave_cap;
+    size_t wave_pos;
+    size_t wave_filled;
+    size_t wave_spc;
 } renderer_t;
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,
@@ -31,6 +37,8 @@ void renderer_resize(renderer_t *r, unsigned rows, unsigned cols, size_t num_bar
 void renderer_set_offset(renderer_t *r, size_t x_off);
 void renderer_set_mode(renderer_t *r, render_mode m);
 render_mode renderer_mode_parse(const char *name);
+void renderer_set_wave(renderer_t *r, unsigned sample_rate);
+void renderer_feed(renderer_t *r, const double *left, const double *right, size_t n);
 void renderer_clear(renderer_t *r);
 void renderer_free(renderer_t *r);
 void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_len,

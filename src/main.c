@@ -107,6 +107,7 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
     rnd->gradient = cfg->gradient;
     apply_colors(rnd, cfg);
     renderer_set_mode(rnd, renderer_mode_parse(cfg->mode ? cfg->mode : "bars"));
+    renderer_set_wave(rnd, cfg->sample_rate);
     renderer_set_offset(rnd, x_off);
     renderer_clear(rnd);
 
@@ -222,6 +223,7 @@ int main(int argc, char **argv) {
     renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars, cfg.gradient);
     apply_colors(&rnd, &cfg);
     renderer_set_mode(&rnd, renderer_mode_parse(cfg.mode ? cfg.mode : "bars"));
+    renderer_set_wave(&rnd, cfg.sample_rate);
 
     double *heights[2];
     heights[0] = malloc(bars * sizeof *heights[0]);
@@ -312,6 +314,7 @@ int main(int argc, char **argv) {
         const double *samples_l = NULL, *samples_r = NULL;
         size_t n = audio_consume(&audio, &samples_l, &samples_r);
         if (n > 0) {
+            renderer_feed(&rnd, samples_l, samples_r, n);
             dsp_execute(&dsp[0], samples_l, n, heights[0]);
             if (cfg.channels > 1 && samples_r)
                 dsp_execute(&dsp[1], samples_r, n, heights[1]);

@@ -187,11 +187,18 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         break;
     }
     case S_MODE: {
-        bool is_ball = c->mode && strcmp(c->mode, "ball") == 0;
-        const char *next = is_ball ? "bars" : "ball";
-        if (!c->mode || strcmp(c->mode, next) != 0) {
+        static const char *const MODES[] = { "bars", "ball", "wave" };
+        int idx = 0;
+        for (int i = 0; i < 3; i++) {
+            if (c->mode && strcmp(c->mode, MODES[i]) == 0) {
+                idx = i;
+                break;
+            }
+        }
+        idx = (idx + 1) % 3;
+        if (!c->mode || strcmp(c->mode, MODES[idx]) != 0) {
             free(c->mode);
-            c->mode = strdup(next);
+            c->mode = strdup(MODES[idx]);
             *changed |= CH_LAYOUT;
         }
         break;
