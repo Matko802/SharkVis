@@ -380,17 +380,6 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
     size_t cols = r->cols;
 
     size_t i;
-    size_t total = (size_t)rows * cols;
-    for (i = 0; i < total; i++) {
-        unsigned char g = r->lj_glow[i];
-        if (g) {
-            unsigned d = g / 8;
-            if (d < 1)
-                d = 1;
-            r->lj_glow[i] = g > d ? (unsigned char)(g - d) : 0;
-        }
-    }
-
     size_t n = r->lj_filled;
     if (n > r->lj_cap)
         n = r->lj_cap;
