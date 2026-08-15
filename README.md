@@ -37,7 +37,7 @@ Keys:
 
 | Key               | Action                          |
 | ----------------- | ------------------------------- |
-| `g`               | open settings panel             |
+| `g`               | open settings                   |
 | `q` / `Ctrl-C`    | quit                            |
 
 The config file is looked up in `$SHARKVIS_CONFIG`, then
