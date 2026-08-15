@@ -37,7 +37,6 @@ typedef struct {
     bool stereo_in;
     size_t lj_draw_last;
     unsigned char *lj_glow;
-    unsigned lj_frame;
 } renderer_t;
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,

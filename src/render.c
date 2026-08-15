@@ -80,7 +80,6 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->stereo_in = false;
     r->lj_draw_last = 0;
     r->lj_glow = NULL;
-    r->lj_frame = 0;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
     r->lj_glow = calloc((size_t)rows * cols, 1);
@@ -117,7 +116,6 @@ void renderer_set_mode(renderer_t *r, render_mode m) {
         if (r->lj_glow)
             memset(r->lj_glow, 0, (size_t)r->rows * r->cols);
         r->lj_draw_last = r->lj_pos;
-        r->lj_frame = 0;
     }
 }
 
@@ -385,12 +383,14 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
     size_t cols = r->cols;
 
     size_t i;
-    if ((r->lj_frame++ & 1u) == 0) {
-        size_t total = (size_t)rows * cols;
-        for (i = 0; i < total; i++) {
-            unsigned char g = r->lj_glow[i];
-            if (g)
-                r->lj_glow[i] = g > 2 ? (unsigned char)(g - 2) : 0;
+    size_t total = (size_t)rows * cols;
+    for (i = 0; i < total; i++) {
+        unsigned char g = r->lj_glow[i];
+        if (g) {
+            unsigned d = g / 8;
+            if (d < 1)
+                d = 1;
+            r->lj_glow[i] = g > d ? (unsigned char)(g - d) : 0;
         }
     }
 
