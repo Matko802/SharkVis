@@ -29,9 +29,9 @@ make PREFIX=$HOME/.local install
 ## Usage
 
 ```sh
-SHRKVis                # start with default config
-SHRKVis -p config.conf # use a specific config file
-SHRKVis -h             # show help
+sharkvis                
+sharkvis -p config.conf 
+sharkvis -h             
 ```
 
 Keys:
