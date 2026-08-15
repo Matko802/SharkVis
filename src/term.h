@@ -16,7 +16,6 @@ enum {
 bool term_winsize(int fd, unsigned *rows, unsigned *cols);
 bool term_raw_enter(int fd);
 void term_raw_restore(int fd);
-/* returns a byte value, a KEY_* code, or KEY_NONE */
 int term_read_key(int fd);
 
 #endif

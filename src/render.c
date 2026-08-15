@@ -22,10 +22,10 @@ static const char *color_for(unsigned from_bottom, unsigned rows) {
     if (third == 0)
         return "\x1b[32m";
     if (from_bottom >= rows - third)
-        return "\x1b[32m"; /* green */
+        return "\x1b[32m";
     if (from_bottom >= rows - 2 * third)
-        return "\x1b[33m"; /* yellow */
-    return "\x1b[31m";     /* red */
+        return "\x1b[33m";
+    return "\x1b[31m";
 }
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,
@@ -128,7 +128,6 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
         }
     }
 
-    /* erase cells that were drawn before but are no longer part of a bar */
     for (size_t col = 0; col < region; col++) {
         size_t base = col / step;
         bool in_bar = base < r->num_bars && col - base * step < bw;

@@ -58,8 +58,8 @@ char *config_default_path(void) {
     const char *home = getenv("HOME");
     if (home) {
         size_t n = strlen(home);
-        char *p = malloc(n + 24);
-        snprintf(p, n + 24, "%s/.config/SharkVis/config", home);
+        char *p = malloc(n + 25);
+        snprintf(p, n + 25, "%s/.config/SharkVis/config", home);
         if (access(p, F_OK) == 0)
             return p;
         free(p);
@@ -68,8 +68,8 @@ char *config_default_path(void) {
         return strdup("config");
     if (home) {
         size_t n = strlen(home);
-        char *p = malloc(n + 24);
-        snprintf(p, n + 24, "%s/.config/SharkVis/config", home);
+        char *p = malloc(n + 25);
+        snprintf(p, n + 25, "%s/.config/SharkVis/config", home);
         return p;
     }
     return strdup("config");

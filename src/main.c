@@ -43,8 +43,6 @@ static int panel_width_for(unsigned cols) {
     return pw;
 }
 
-/* apply cfg to the running dsp/renderer/audio; x_off is the bar-area offset
- * (panel width while settings are open, 0 after closing) */
 static void apply_settings(dsp_t *dsp, renderer_t *rnd, audio_t *audio,
                            srk_config *cfg, size_t *bars, double **heights,
                            unsigned rows, unsigned cols, unsigned chmask,
@@ -187,7 +185,6 @@ int main(int argc, char **argv) {
 
     settings_ui *st = settings_new();
     bool in_settings = false;
-    bool clear_render = false;
     unsigned chmask = 0;
 
     struct timespec next;
@@ -216,7 +213,8 @@ int main(int argc, char **argv) {
                     apply_settings(&dsp, &rnd, &audio, &cfg, &bars, &heights,
                                    rows, cols, chmask, !!(chmask & CH_AUDIO),
                                    (size_t)panel_width_for(cols));
-                    clear_render = true;
+                    printf("\x1b[2J\x1b[H");
+                    fflush(stdout);
                     chmask = 0;
                 }
             }
@@ -277,11 +275,6 @@ int main(int argc, char **argv) {
             heights[i] *= sens;
 
         size_t olen = 0;
-        if (clear_render) {
-            memcpy(out, "\x1b[2J\x1b[H", 7);
-            olen = 7;
-            clear_render = false;
-        }
         if (in_settings)
             settings_draw(st, &cfg, out, &olen, (size_t)1 << 20, rows,
                           panel_width_for(cols));

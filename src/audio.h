@@ -21,7 +21,6 @@ typedef struct {
 
 void audio_init(audio_t *a, size_t capacity);
 void audio_start(audio_t *a, const char *source, unsigned rate, unsigned channels);
-/* returns number of mono f64 samples available and resets the buffer */
 size_t audio_consume(audio_t *a, const double **samples);
 bool audio_failed(audio_t *a);
 const char *audio_error(audio_t *a);
