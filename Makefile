@@ -21,6 +21,12 @@ $(BIN): $(OBJ)
 src/%.o: src/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
+compiledb:
+	printf '[\n' > compile_commands.json
+	CCWRAP_FRAG=$(abspath compile_commands.json) $(MAKE) clean all CC=$(CURDIR)/scripts/ccwrap
+	sed -i '$$s/,$$//' compile_commands.json
+	printf ']\n' >> compile_commands.json
+
 install: $(BIN)
 	install -Dm755 $(BIN) $(DESTDIR)$(PREFIX)/bin/$(BIN)
 
