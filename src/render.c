@@ -387,8 +387,6 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
             else if (v > 1.0)
                 v = 1.0;
             double h = v * (double)rows;
-            if (h < 1.0)
-                h = 0.1;
 
             double frac = h - (double)fb;
             if (!(frac > 0.0))
