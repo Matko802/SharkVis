@@ -114,7 +114,7 @@ void config_default(srk_config *c) {
     c->max_bars = 120;
     c->bar_width = 2;
     c->bar_spacing = 1;
-    c->framerate = 30;
+    c->framerate = 60;
     c->sensitivity = 100.0;
     c->autosens = true;
     c->lower_cutoff = 50;
@@ -124,14 +124,11 @@ void config_default(srk_config *c) {
     c->source = strdup("auto");
     c->sample_rate = 48000;
     c->channels = 2;
-    c->gradient = false;
     c->color_256 = false;
-    free(c->color);
-    c->color = strdup("ffffff");
     free(c->gradient_low);
-    c->gradient_low = strdup("ff0000");
+    c->gradient_low = strdup("ffffff");
     free(c->gradient_high);
-    c->gradient_high = strdup("00ff00");
+    c->gradient_high = strdup("ffffff");
     free(c->mode);
     c->mode = strdup("bars");
 }
@@ -162,7 +159,6 @@ char *config_default_path(void) {
 
 void config_free(srk_config *c) {
     free(c->source);
-    free(c->color);
     free(c->gradient_low);
     free(c->gradient_high);
     free(c->mode);
@@ -213,11 +209,9 @@ bool config_save(const srk_config *c, const char *path) {
     fprintf(f, "sample_rate = %u\n", c->sample_rate);
     fprintf(f, "channels = %u\n", c->channels);
     fprintf(f, "\n[color]\n");
-    fprintf(f, "gradient = %d\n", c->gradient ? 1 : 0);
     fprintf(f, "color_mode = %s\n", c->color_256 ? "256" : "24bit");
-    fprintf(f, "color = %s\n", c->color ? c->color : "ffffff");
-    fprintf(f, "gradient_low = %s\n", c->gradient_low ? c->gradient_low : "ff0000");
-    fprintf(f, "gradient_high = %s\n", c->gradient_high ? c->gradient_high : "00ff00");
+    fprintf(f, "gradient_low = %s\n", c->gradient_low ? c->gradient_low : "ffffff");
+    fprintf(f, "gradient_high = %s\n", c->gradient_high ? c->gradient_high : "ffffff");
     fprintf(f, "\n[visualizer]\n");
     fprintf(f, "mode = %s\n", c->mode ? c->mode : "bars");
 
@@ -294,23 +288,13 @@ bool config_load(srk_config *c, const char *path) {
                 c->channels = (unsigned)geti(val, (long)c->channels);
             }
         } else if (strcmp(section, "color") == 0) {
-            if (strcmp(key, "gradient") == 0)
-                c->gradient = geti(val, 1) != 0;
-            else if (strcmp(key, "color_mode") == 0) {
+            if (strcmp(key, "color_mode") == 0) {
                 if (strcmp(val, "256") == 0 || strcmp(val, "indexed") == 0)
                     c->color_256 = true;
                 else if (strcmp(val, "24bit") == 0 || strcmp(val, "truecolor") == 0)
                     c->color_256 = false;
                 else
                     c->color_256 = geti(val, 0) != 0;
-            } else if (strcmp(key, "color") == 0) {
-                char tmp[8];
-                snprintf(tmp, sizeof tmp, "%s", val);
-                unsigned rr, gg, bb;
-                if (parse_hex_rgb(tmp, &rr, &gg, &bb) == 0) {
-                    free(c->color);
-                    c->color = strdup(tmp);
-                }
             } else if (strcmp(key, "gradient_low") == 0) {
                 char tmp[8];
                 snprintf(tmp, sizeof tmp, "%s", val);

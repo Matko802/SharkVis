@@ -34,21 +34,17 @@ static void appu(char *out, size_t *olen, size_t cap, unsigned v) {
 
 static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
                       char *buf, size_t n) {
-    unsigned cr = (r->color >> 16) & 0xff, cg = (r->color >> 8) & 0xff,
-             cb = r->color & 0xff;
-    if (r->gradient) {
-        long lo_r = (r->grad_lo >> 16) & 0xff, lo_g = (r->grad_lo >> 8) & 0xff,
-             lo_b = r->grad_lo & 0xff;
-        long hi_r = (r->grad_hi >> 16) & 0xff, hi_g = (r->grad_hi >> 8) & 0xff,
-             hi_b = r->grad_hi & 0xff;
-        double t = rows > 1 ? (double)from_bottom / (double)(rows - 1) : 0.0;
-        cr = (unsigned)(lo_r + (hi_r - lo_r) * t + 0.5);
-        cg = (unsigned)(lo_g + (hi_g - lo_g) * t + 0.5);
-        cb = (unsigned)(lo_b + (hi_b - lo_b) * t + 0.5);
-        if (cr > 255) cr = 255;
-        if (cg > 255) cg = 255;
-        if (cb > 255) cb = 255;
-    }
+    long lo_r = (r->grad_lo >> 16) & 0xff, lo_g = (r->grad_lo >> 8) & 0xff,
+         lo_b = r->grad_lo & 0xff;
+    long hi_r = (r->grad_hi >> 16) & 0xff, hi_g = (r->grad_hi >> 8) & 0xff,
+         hi_b = r->grad_hi & 0xff;
+    double frac = rows > 1 ? (double)from_bottom / (double)(rows - 1) : 0.0;
+    unsigned cr = (unsigned)(lo_r + (hi_r - lo_r) * frac + 0.5);
+    unsigned cg = (unsigned)(lo_g + (hi_g - lo_g) * frac + 0.5);
+    unsigned cb = (unsigned)(lo_b + (hi_b - lo_b) * frac + 0.5);
+    if (cr > 255) cr = 255;
+    if (cg > 255) cg = 255;
+    if (cb > 255) cb = 255;
     size_t o = 0;
     if (r->color_256) {
         unsigned idx = 16 + 36 * ((cr * 6) / 256) + 6 * ((cg * 6) / 256) +
@@ -142,15 +138,13 @@ static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *
 }
 
 void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width,
-                   size_t bar_spacing, size_t num_bars, bool gradient) {
+                   size_t bar_spacing, size_t num_bars) {
     r->rows = rows;
     r->cols = cols;
     r->bar_width = bar_width ? bar_width : 1;
     r->bar_spacing = bar_spacing;
     r->num_bars = num_bars;
-    r->gradient = gradient;
     r->color_256 = false;
-    r->color = 0xffffffu;
     r->grad_lo = 0xff0000u;
     r->grad_hi = 0x00ff00u;
     r->mode = RENDER_BARS;

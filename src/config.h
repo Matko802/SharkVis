@@ -18,9 +18,7 @@ typedef struct {
     char *source;
     unsigned sample_rate;
     unsigned channels;
-    bool gradient;
     bool color_256;
-    char *color;
     char *gradient_low;
     char *gradient_high;
     char *mode;

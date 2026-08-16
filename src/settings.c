@@ -19,9 +19,7 @@ typedef enum {
     S_NOISE,
     S_LOW,
     S_HIGH,
-    S_GRAD,
     S_CMODE,
-    S_COL,
     S_GLO,
     S_GHI,
     S_MODE,
@@ -42,14 +40,12 @@ static const char *const LABELS[S_COUNT] = {
     "framerate",
     "sensitivity",
     "autosens",
-    "noise reduction",
+    "smoothing",
     "lower cutoff",
     "upper cutoff",
-    "gradient color",
     "color mode",
-    "bar color",
-    "gradient low",
-    "gradient high",
+    "color low",
+    "color high",
     "visualizer",
     "sample rate",
     "channels",
@@ -177,14 +173,6 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         }
         break;
     }
-    case S_GRAD: {
-        bool v = !c->gradient;
-        if (v != c->gradient) {
-            c->gradient = v;
-            *changed |= CH_LAYOUT;
-        }
-        break;
-    }
     case S_CMODE: {
         bool v = !c->color_256;
         if (v != c->color_256) {
@@ -193,11 +181,9 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         }
         break;
     }
-    case S_COL:
     case S_GLO:
     case S_GHI: {
-        char **dst = (id == S_COL) ? &c->color
-            : (id == S_GLO) ? &c->gradient_low : &c->gradient_high;
+        char **dst = (id == S_GLO) ? &c->gradient_low : &c->gradient_high;
         int idx = color_index(*dst);
         if (idx < 0)
             idx = 0;
@@ -216,7 +202,7 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
                 break;
             }
         }
-        idx = (idx + 1) % 3;
+        idx = (idx + dir + 3) % 3;
         if (!c->mode || strcmp(c->mode, MODES[idx]) != 0) {
             free(c->mode);
             c->mode = strdup(MODES[idx]);
@@ -307,17 +293,12 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
     case S_AUTO:
         snprintf(buf, n, "%s", c->autosens ? "on" : "off");
         break;
-    case S_GRAD:
-        snprintf(buf, n, "%s", c->gradient ? "on" : "off");
-        break;
     case S_CMODE:
         snprintf(buf, n, "%s", c->color_256 ? "256" : "24bit");
         break;
-    case S_COL:
     case S_GLO:
     case S_GHI: {
-        const char *hx = (id == S_COL) ? c->color
-            : (id == S_GLO) ? c->gradient_low : c->gradient_high;
+        const char *hx = (id == S_GLO) ? c->gradient_low : c->gradient_high;
         const char *nm = color_name(hx);
         snprintf(buf, n, "%s", nm ? nm : (hx ? hx : "?"));
         break;

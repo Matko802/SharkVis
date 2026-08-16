@@ -88,8 +88,6 @@ static size_t per_ch_right(size_t bars, unsigned channels) {
 
 static void apply_colors(renderer_t *rnd, const srk_config *cfg) {
     unsigned r, g, b;
-    if (color_to_rgb(cfg->color, &r, &g, &b) == 0)
-        rnd->color = (r << 16) | (g << 8) | b;
     if (color_to_rgb(cfg->gradient_low, &r, &g, &b) == 0)
         rnd->grad_lo = (r << 16) | (g << 8) | b;
     if (color_to_rgb(cfg->gradient_high, &r, &g, &b) == 0)
@@ -132,7 +130,6 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
 
     rnd->bar_width = cfg->bar_width;
     rnd->bar_spacing = cfg->bar_spacing;
-    rnd->gradient = cfg->gradient;
     rnd->color_256 = cfg->color_256;
     apply_colors(rnd, cfg);
     renderer_set_mode(rnd, renderer_mode_parse(cfg->mode ? cfg->mode : "bars"));
@@ -267,7 +264,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
 
     renderer_t rnd;
-    renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars, cfg.gradient);
+    renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars);
     apply_colors(&rnd, &cfg);
     renderer_set_mode(&rnd, renderer_mode_parse(cfg.mode ? cfg.mode : "bars"));
     renderer_set_wave(&rnd, cfg.sample_rate);
