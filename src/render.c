@@ -136,6 +136,7 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->grad_hi = 0x00ff00u;
     r->mode = RENDER_BARS;
     r->x_off = 0;
+    r->barstr_bw = 0;
     r->wave_buf = NULL;
     r->wave_cap = 0;
     r->wave_pos = 0;
@@ -162,6 +163,7 @@ void renderer_resize(renderer_t *r, unsigned rows, unsigned cols, size_t num_bar
     r->rows = rows;
     r->cols = cols;
     r->num_bars = num_bars;
+    r->barstr_bw = 0;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
     r->lj_glow = calloc((size_t)rows * cols, 1);
@@ -277,6 +279,25 @@ void renderer_free(renderer_t *r) {
     r->lj_glow = NULL;
 }
 
+static void build_barstrings(renderer_t *r) {
+    size_t bw = r->bar_width ? r->bar_width : 1;
+    if (bw > 8)
+        bw = 8;
+    if (r->barstr_bw == bw)
+        return;
+    r->barstr_bw = bw;
+    for (int gi = 0; gi <= 8; gi++) {
+        size_t o = 0;
+        for (size_t w = 0; w < bw && o + 3 < sizeof r->barstr[gi]; w++)
+            app(r->barstr[gi], &o, sizeof r->barstr[gi], GLYPHS[gi]);
+        r->barstr[gi][o] = '\0';
+    }
+    size_t o = 0;
+    for (size_t w = 0; w < bw && o + 1 < sizeof r->spacestr; w++)
+        app(r->spacestr, &o, sizeof r->spacestr, " ");
+    r->spacestr[o] = '\0';
+}
+
 static void draw_bars(renderer_t *r, const double *left, const double *right,
                       size_t nbars, size_t per_ch_l, size_t x_start,
                       size_t region_w, char *out, size_t *out_len, size_t cap) {
@@ -292,49 +313,101 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
 
     size_t used = nbars * step;
     size_t lead = used < region_w ? (region_w - used) / 2 : 0;
+    size_t region_end = x_start + region_w;
+    if (region_end > cols)
+        region_end = cols;
+
+    build_barstrings(r);
 
     color_state st = { 0 };
 
-    for (size_t b = 0; b < nbars; b++) {
-        const double *src;
-        size_t vi;
-        if (b < per_ch_l) {
-            src = left;
-            vi = per_ch_l - 1 - b; /* left half is mirrored toward centre */
-        } else {
-            src = right;
-            vi = b - per_ch_l;
-        }
-        double v = src[vi];
-        if (!(v > 0.0))
-            v = 0.0;
-        else if (v > 1.0)
-            v = 1.0;
-        double h = v * (double)rows;
-        if (h < 1.0)
-            h = 0.1;
-
-        size_t base = b * step;
-        if (lead + base >= region_w)
-            break;
-
-        for (size_t w = 0; w < bw; w++) {
-            size_t col = x_start + lead + base + w;
-            if (col >= cols || col >= x_start + region_w)
+    for (unsigned y = 0; y < rows; y++) {
+        unsigned fb = rows - 1 - y;
+        size_t skip = 0;
+        bool wrote = false;
+        bool color_on = false;
+        for (size_t b = 0; b < nbars; b++) {
+            size_t col = x_start + lead + b * step;
+            if (col >= region_end)
                 break;
-            for (unsigned y = 0; y < rows; y++) {
-                unsigned fb = rows - 1 - y;
-                double frac = h - (double)fb;
-                if (!(frac > 0.0))
-                    frac = 0.0;
-                else if (frac > 1.0)
-                    frac = 1.0;
-                int gi = (int)(frac * 8.0 + 0.9999);
-                if (gi < 0)
-                    gi = 0;
-                if (gi > 8)
-                    gi = 8;
-                emit_cell(r, y, col, gi, &st, out, out_len, cap);
+            const double *src;
+            size_t vi;
+            if (b < per_ch_l) {
+                src = left;
+                vi = per_ch_l - 1 - b;
+            } else {
+                src = right;
+                vi = b - per_ch_l;
+            }
+            double v = src[vi];
+            if (!(v > 0.0))
+                v = 0.0;
+            else if (v > 1.0)
+                v = 1.0;
+            double h = v * (double)rows;
+            if (h < 1.0)
+                h = 0.1;
+
+            double frac = h - (double)fb;
+            if (!(frac > 0.0))
+                frac = 0.0;
+            else if (frac > 1.0)
+                frac = 1.0;
+            int gi = (int)(frac * 8.0 + 0.9999);
+            if (gi < 0)
+                gi = 0;
+            if (gi > 8)
+                gi = 8;
+
+            size_t idx = (size_t)y * cols + col;
+            if ((unsigned char)gi == r->prev[idx]) {
+                skip += step;
+                continue;
+            }
+            r->prev[idx] = (unsigned char)gi;
+            size_t wvis = region_end - col;
+            if (wvis > bw)
+                wvis = bw;
+            for (size_t w = 1; w < wvis; w++)
+                r->prev[idx + w] = (unsigned char)gi;
+
+            if (!wrote) {
+                seek_cell((long)y, (long)col, out, out_len, cap);
+                wrote = true;
+            } else if (skip > 0) {
+                app(out, out_len, cap, "\x1b[");
+                appu(out, out_len, cap, (unsigned)skip);
+                app(out, out_len, cap, "C");
+            }
+            skip = 0;
+
+            if (gi > 0) {
+                if (!color_on) {
+                    emit_color_state(&st, r->row_col + (size_t)y * 40, out,
+                                     out_len, cap);
+                    color_on = true;
+                }
+                if (wvis == bw)
+                    app(out, out_len, cap, r->barstr[gi]);
+                else
+                    for (size_t w = 0; w < wvis; w++)
+                        app(out, out_len, cap, GLYPHS[gi]);
+            } else {
+                if (wvis == bw)
+                    app(out, out_len, cap, r->spacestr);
+                else
+                    for (size_t w = 0; w < wvis; w++)
+                        app(out, out_len, cap, " ");
+            }
+
+            if (r->bar_spacing && b + 1 < nbars && col + step < region_end) {
+                if (r->bar_spacing == 1)
+                    app(out, out_len, cap, " ");
+                else {
+                    app(out, out_len, cap, "\x1b[");
+                    appu(out, out_len, cap, (unsigned)r->bar_spacing);
+                    app(out, out_len, cap, "C");
+                }
             }
         }
     }

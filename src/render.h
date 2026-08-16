@@ -24,6 +24,9 @@ typedef struct {
     size_t x_off;
     unsigned char *prev;
     char *row_col;
+    char barstr[9][32];
+    char spacestr[32];
+    size_t barstr_bw;
     double *wave_buf;
     size_t wave_cap;
     size_t wave_pos;
