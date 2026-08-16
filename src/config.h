@@ -6,6 +6,7 @@
 
 typedef struct {
     size_t bars;
+    size_t max_bars;
     size_t bar_width;
     size_t bar_spacing;
     unsigned framerate;

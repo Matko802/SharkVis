@@ -111,6 +111,7 @@ int color_to_rgb(const char *hex, unsigned *r, unsigned *g, unsigned *b) {
 void config_default(srk_config *c) {
     memset(c, 0, sizeof *c);
     c->bars = 0;
+    c->max_bars = 120;
     c->bar_width = 2;
     c->bar_spacing = 1;
     c->framerate = 30;
@@ -195,6 +196,7 @@ bool config_save(const srk_config *c, const char *path) {
 
     fprintf(f, "[general]\n");
     fprintf(f, "bars = %zu\n", c->bars);
+    fprintf(f, "max_bars = %zu\n", c->max_bars);
     fprintf(f, "bar_width = %zu\n", c->bar_width);
     fprintf(f, "bar_spacing = %zu\n", c->bar_spacing);
     fprintf(f, "framerate = %u\n", c->framerate);
@@ -256,6 +258,8 @@ bool config_load(srk_config *c, const char *path) {
         if (strcmp(section, "general") == 0) {
             if (strcmp(key, "bars") == 0)
                 c->bars = (size_t)geti(val, (long)c->bars);
+            else if (strcmp(key, "max_bars") == 0)
+                c->max_bars = (size_t)geti(val, (long)c->max_bars);
             else if (strcmp(key, "bar_width") == 0)
                 c->bar_width = (size_t)geti(val, (long)c->bar_width);
             else if (strcmp(key, "bar_spacing") == 0)

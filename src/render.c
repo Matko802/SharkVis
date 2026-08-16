@@ -86,23 +86,26 @@ typedef struct {
     char col[40];
 } color_state;
 
-static void emit_color(const renderer_t *r, unsigned from_bottom, color_state *st,
-                       char *out, size_t *out_len, size_t cap) {
-    char buf[40];
-    bar_color(r, from_bottom, r->rows, buf, sizeof buf);
-    if (st->active && strcmp(st->col, buf) == 0)
-        return;
-    app(out, out_len, cap, buf);
-    snprintf(st->col, sizeof st->col, "%s", buf);
-    st->active = true;
-}
-
 static void seek_cell(long r, long c, char *out, size_t *out_len, size_t cap) {
     app(out, out_len, cap, "\x1b[");
     appu(out, out_len, cap, (unsigned)(r + 1));
     app(out, out_len, cap, ";");
     appu(out, out_len, cap, (unsigned)(c + 1));
     app(out, out_len, cap, "H");
+}
+
+static void emit_color_state(color_state *st, const char *pre, char *out,
+                             size_t *out_len, size_t cap) {
+    if (st->active && strcmp(st->col, pre) == 0)
+        return;
+    app(out, out_len, cap, pre);
+    snprintf(st->col, sizeof st->col, "%s", pre);
+    st->active = true;
+}
+
+static void row_colors(renderer_t *r) {
+    for (unsigned y = 0; y < r->rows; y++)
+        bar_color(r, r->rows - 1 - y, r->rows, r->row_col + (size_t)y * 40, 40);
 }
 
 static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *st,
@@ -115,7 +118,7 @@ static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *
     if (gi == 0) {
         app(out, out_len, cap, " ");
     } else {
-        emit_color(r, r->rows - 1 - y, st, out, out_len, cap);
+        emit_color_state(st, r->row_col + (size_t)y * 40, out, out_len, cap);
         app(out, out_len, cap, GLYPHS[gi]);
     }
 }
@@ -149,17 +152,20 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
     r->lj_glow = calloc((size_t)rows * cols, 1);
+    r->row_col = malloc((size_t)rows * 40);
 }
 
 void renderer_resize(renderer_t *r, unsigned rows, unsigned cols, size_t num_bars) {
     free(r->prev);
     free(r->lj_glow);
+    free(r->row_col);
     r->rows = rows;
     r->cols = cols;
     r->num_bars = num_bars;
     r->prev = malloc((size_t)rows * cols);
     memset(r->prev, 0xFF, (size_t)rows * cols);
     r->lj_glow = calloc((size_t)rows * cols, 1);
+    r->row_col = malloc((size_t)rows * 40);
 }
 
 void renderer_set_offset(renderer_t *r, size_t x_off) {
@@ -259,6 +265,8 @@ void renderer_clear(renderer_t *r) {
 void renderer_free(renderer_t *r) {
     free(r->prev);
     r->prev = NULL;
+    free(r->row_col);
+    r->row_col = NULL;
     free(r->wave_buf);
     r->wave_buf = NULL;
     free(r->lj_l);
@@ -282,6 +290,9 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
     if (step == 0)
         step = 1;
 
+    size_t used = nbars * step;
+    size_t lead = used < region_w ? (region_w - used) / 2 : 0;
+
     color_state st = { 0 };
 
     for (size_t b = 0; b < nbars; b++) {
@@ -304,11 +315,11 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
             h = 0.1;
 
         size_t base = b * step;
-        if (base >= region_w)
+        if (lead + base >= region_w)
             break;
 
         for (size_t w = 0; w < bw; w++) {
-            size_t col = x_start + base + w;
+            size_t col = x_start + lead + base + w;
             if (col >= cols || col >= x_start + region_w)
                 break;
             for (unsigned y = 0; y < rows; y++) {
@@ -329,8 +340,13 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
     }
 
     for (size_t col = 0; col < region_w; col++) {
-        size_t base = col / step;
-        bool in_bar = base < nbars && col - base * step < bw;
+        bool in_bar;
+        if (col >= lead) {
+            size_t t = col - lead;
+            in_bar = t / step < nbars && t % step < bw;
+        } else {
+            in_bar = false;
+        }
         if (in_bar)
             continue;
         size_t abs_col = x_start + col;
@@ -496,6 +512,7 @@ void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_l
     size_t region = r->cols - r->x_off;
     if (region == 0)
         return;
+    row_colors(r);
     if (r->mode == RENDER_WAVE)
         draw_wave(r, r->x_off, region, out, out_len, cap);
     else if (r->mode == RENDER_LISSAJOUS)
@@ -510,6 +527,7 @@ void renderer_draw_stereo(renderer_t *r, const double *left, const double *right
     size_t region = r->cols - r->x_off;
     if (region == 0)
         return;
+    row_colors(r);
     if (r->mode == RENDER_WAVE)
         draw_wave(r, r->x_off, region, out, out_len, cap);
     else if (r->mode == RENDER_LISSAJOUS)

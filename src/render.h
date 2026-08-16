@@ -23,6 +23,7 @@ typedef struct {
     render_mode mode;
     size_t x_off;
     unsigned char *prev;
+    char *row_col;
     double *wave_buf;
     size_t wave_cap;
     size_t wave_pos;
