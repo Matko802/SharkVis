@@ -69,8 +69,6 @@ static size_t bar_count_for(unsigned cols, const srk_config *cfg) {
     size_t step = cfg->bar_width + cfg->bar_spacing;
     size_t avail = step ? cols / step : cols;
     size_t b = cfg->bars ? cfg->bars : avail;
-    if (cfg->max_bars && b > cfg->max_bars)
-        b = cfg->max_bars;
     return b < 1 ? 1 : b;
 }
 
@@ -193,8 +191,6 @@ int main(int argc, char **argv) {
 
     if (cfg.bar_width < 1)
         cfg.bar_width = 1;
-    if (cfg.max_bars > 256)
-        cfg.max_bars = 256;
     if (cfg.framerate < 1)
         cfg.framerate = 1;
     if (cfg.framerate > 240)

@@ -10,7 +10,6 @@
 
 typedef enum {
     S_BARS,
-    S_MAXBARS,
     S_BARW,
     S_SPACING,
     S_FPS,
@@ -34,7 +33,6 @@ typedef enum {
 
 static const char *const LABELS[S_COUNT] = {
     "bars",
-    "max bars",
     "bar width",
     "bar spacing",
     "framerate",
@@ -97,14 +95,6 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         long v = clamp_l((long)c->bars + dir, 0, 256);
         if ((size_t)v != c->bars) {
             c->bars = (size_t)v;
-            *changed |= CH_LAYOUT;
-        }
-        break;
-    }
-    case S_MAXBARS: {
-        long v = clamp_l((long)c->max_bars + dir * 20, 0, 256);
-        if ((size_t)v != c->max_bars) {
-            c->max_bars = (size_t)v;
             *changed |= CH_LAYOUT;
         }
         break;
@@ -283,12 +273,6 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
             snprintf(buf, n, "auto");
         else
             snprintf(buf, n, "%zu", c->bars);
-        break;
-    case S_MAXBARS:
-        if (c->max_bars == 0)
-            snprintf(buf, n, "auto");
-        else
-            snprintf(buf, n, "%zu", c->max_bars);
         break;
     case S_AUTO:
         snprintf(buf, n, "%s", c->autosens ? "on" : "off");
