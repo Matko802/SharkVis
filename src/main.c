@@ -19,6 +19,9 @@
 static volatile sig_atomic_t g_sig = 0;
 static volatile sig_atomic_t g_resize = 0;
 
+static bool g_debug = false;
+static FILE *g_dbg = NULL;
+
 static void on_signal(int sig) {
     (void)sig;
     g_sig = 1;
@@ -170,6 +173,11 @@ int main(int argc, char **argv) {
     srk_config cfg;
     config_default(&cfg);
 
+    if (getenv("SHARKVIS_DEBUG")) {
+        g_debug = true;
+        g_dbg = fopen("/tmp/sharkvis_dbg.log", "w");
+    }
+
     char *save_path = NULL;
     if (cfgpath) {
         save_path = strdup(cfgpath);
@@ -281,7 +289,14 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &next);
 
     int rc = 0;
+    bool drop_next = false;
     while (!g_sig) {
+        struct timespec t_frame0;
+        size_t last_bytes = 0;
+        long t_write_us = -1;
+        bool drew = false;
+        if (g_debug)
+            clock_gettime(CLOCK_MONOTONIC, &t_frame0);
         int key = term_read_key(0);
 
         if (in_settings) {
@@ -406,8 +421,9 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (need_draw) {
+        if (need_draw && (force_draw || in_settings || !drop_next)) {
             force_draw = false;
+            drew = true;
             memcpy(last_h[0], heights[0], pcl * sizeof *last_h[0]);
             if (cfg.channels > 1)
                 memcpy(last_h[1], heights[1], pcr * sizeof *last_h[1]);
@@ -422,16 +438,46 @@ int main(int argc, char **argv) {
             else
                 renderer_draw(&rnd, heights[0], out, &olen, (size_t)1 << 20);
             if (olen) {
+                struct timespec t_write;
+                if (g_debug)
+                    clock_gettime(CLOCK_MONOTONIC, &t_write);
                 fwrite(out, 1, olen, stdout);
                 fflush(stdout);
+                last_bytes = olen;
+                if (g_debug) {
+                    struct timespec t_after;
+                    clock_gettime(CLOCK_MONOTONIC, &t_after);
+                    t_write_us = (t_after.tv_sec - t_write.tv_sec) * 1000000L +
+                                 (t_after.tv_nsec - t_write.tv_nsec) / 1000L;
+                }
             }
         }
 
         long frame_ns = (long)(1e9 / (cfg.framerate ? cfg.framerate : 1));
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        int behind = now.tv_sec > next.tv_sec ||
+                     (now.tv_sec == next.tv_sec && now.tv_nsec > next.tv_nsec);
+        if (behind) {
+            next = now;
+            drop_next = true;
+        } else {
+            drop_next = false;
+        }
+        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, NULL);
         next.tv_nsec += frame_ns;
         next.tv_sec += next.tv_nsec / 1000000000L;
         next.tv_nsec %= 1000000000L;
-        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, NULL);
+        if (g_debug && g_dbg) {
+            long iter_us = (now.tv_sec - t_frame0.tv_sec) * 1000000L +
+                           (now.tv_nsec - t_frame0.tv_nsec) / 1000L;
+            fprintf(g_dbg,
+                    "iter=%ldus write=%ldus bytes=%zu drew=%d behind=%d "
+                    "drop_next=%d fps=%u\n",
+                    iter_us, t_write_us, last_bytes, drew, behind, drop_next,
+                    cfg.framerate);
+            fflush(g_dbg);
+        }
     }
 
     if (!config_save(&cfg, save_path))
@@ -453,5 +499,7 @@ int main(int argc, char **argv) {
     free(out);
     free(save_path);
     config_free(&cfg);
+    if (g_dbg)
+        fclose(g_dbg);
     return rc;
 }
