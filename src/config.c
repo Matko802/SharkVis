@@ -125,6 +125,7 @@ void config_default(srk_config *c) {
     c->sample_rate = 48000;
     c->channels = 2;
     c->gradient = false;
+    c->color_256 = false;
     free(c->color);
     c->color = strdup("ffffff");
     free(c->gradient_low);
@@ -213,6 +214,7 @@ bool config_save(const srk_config *c, const char *path) {
     fprintf(f, "channels = %u\n", c->channels);
     fprintf(f, "\n[color]\n");
     fprintf(f, "gradient = %d\n", c->gradient ? 1 : 0);
+    fprintf(f, "color_mode = %s\n", c->color_256 ? "256" : "24bit");
     fprintf(f, "color = %s\n", c->color ? c->color : "ffffff");
     fprintf(f, "gradient_low = %s\n", c->gradient_low ? c->gradient_low : "ff0000");
     fprintf(f, "gradient_high = %s\n", c->gradient_high ? c->gradient_high : "00ff00");
@@ -294,7 +296,14 @@ bool config_load(srk_config *c, const char *path) {
         } else if (strcmp(section, "color") == 0) {
             if (strcmp(key, "gradient") == 0)
                 c->gradient = geti(val, 1) != 0;
-            else if (strcmp(key, "color") == 0) {
+            else if (strcmp(key, "color_mode") == 0) {
+                if (strcmp(val, "256") == 0 || strcmp(val, "indexed") == 0)
+                    c->color_256 = true;
+                else if (strcmp(val, "24bit") == 0 || strcmp(val, "truecolor") == 0)
+                    c->color_256 = false;
+                else
+                    c->color_256 = geti(val, 0) != 0;
+            } else if (strcmp(key, "color") == 0) {
                 char tmp[8];
                 snprintf(tmp, sizeof tmp, "%s", val);
                 unsigned rr, gg, bb;

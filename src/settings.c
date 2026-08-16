@@ -20,6 +20,7 @@ typedef enum {
     S_LOW,
     S_HIGH,
     S_GRAD,
+    S_CMODE,
     S_COL,
     S_GLO,
     S_GHI,
@@ -45,6 +46,7 @@ static const char *const LABELS[S_COUNT] = {
     "lower cutoff",
     "upper cutoff",
     "gradient color",
+    "color mode",
     "bar color",
     "gradient low",
     "gradient high",
@@ -183,6 +185,14 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         }
         break;
     }
+    case S_CMODE: {
+        bool v = !c->color_256;
+        if (v != c->color_256) {
+            c->color_256 = v;
+            *changed |= CH_LAYOUT;
+        }
+        break;
+    }
     case S_COL:
     case S_GLO:
     case S_GHI: {
@@ -299,6 +309,9 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
         break;
     case S_GRAD:
         snprintf(buf, n, "%s", c->gradient ? "on" : "off");
+        break;
+    case S_CMODE:
+        snprintf(buf, n, "%s", c->color_256 ? "256" : "24bit");
         break;
     case S_COL:
     case S_GLO:

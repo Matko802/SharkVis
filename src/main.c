@@ -128,6 +128,7 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
     rnd->bar_width = cfg->bar_width;
     rnd->bar_spacing = cfg->bar_spacing;
     rnd->gradient = cfg->gradient;
+    rnd->color_256 = cfg->color_256;
     apply_colors(rnd, cfg);
     renderer_set_mode(rnd, renderer_mode_parse(cfg->mode ? cfg->mode : "bars"));
     renderer_set_wave(rnd, cfg->sample_rate);

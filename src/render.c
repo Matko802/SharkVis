@@ -50,6 +50,24 @@ static void bar_color(const renderer_t *r, unsigned from_bottom, unsigned rows,
         if (cb > 255) cb = 255;
     }
     size_t o = 0;
+    if (r->color_256) {
+        unsigned idx = 16 + 36 * ((cr * 6) / 256) + 6 * ((cg * 6) / 256) +
+                       (cb * 6) / 256;
+        const char *pre = "\x1b[38;5;";
+        while (*pre && o + 1 < n)
+            buf[o++] = *pre++;
+        char t[12];
+        size_t len = 0;
+        do {
+            t[len++] = (char)('0' + idx % 10);
+            idx /= 10;
+        } while (idx);
+        while (len && o + 1 < n)
+            buf[o++] = t[--len];
+        buf[o++] = 'm';
+        buf[o] = '\0';
+        return;
+    }
     const char *pre = "\x1b[38;2;";
     while (*pre && o + 1 < n)
         buf[o++] = *pre++;
@@ -131,6 +149,7 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->bar_spacing = bar_spacing;
     r->num_bars = num_bars;
     r->gradient = gradient;
+    r->color_256 = false;
     r->color = 0xffffffu;
     r->grad_lo = 0xff0000u;
     r->grad_hi = 0x00ff00u;
