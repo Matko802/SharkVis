@@ -14,6 +14,8 @@
 
 #define VIS_EPS 0.01
 
+#define CLEAR_ESC "\x1b[2J\x1b[3J\x1b[H"
+
 static volatile sig_atomic_t g_sig = 0;
 static volatile sig_atomic_t g_resize = 0;
 
@@ -285,7 +287,7 @@ int main(int argc, char **argv) {
         if (in_settings) {
             if (key == 'g' || key == 'G' || key == KEY_ESC) {
                 in_settings = false;
-                printf("\x1b[2J\x1b[H");
+                printf(CLEAR_ESC);
                 fflush(stdout);
                 apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights, last_h,
                                rows, cols, chmask, !!(chmask & CH_AUDIO), 0);
@@ -303,7 +305,7 @@ int main(int argc, char **argv) {
                                    last_h, rows, cols, chmask,
                                    !!(chmask & CH_AUDIO),
                                    (size_t)panel_width_for(cols));
-                    printf("\x1b[2J\x1b[H");
+                    printf(CLEAR_ESC);
                     fflush(stdout);
                     chmask = 0;
                     force_draw = true;
@@ -313,7 +315,7 @@ int main(int argc, char **argv) {
             if (key == 'g' || key == 'G') {
                 in_settings = true;
                 chmask = 0;
-                printf("\x1b[2J\x1b[H");
+                printf(CLEAR_ESC);
                 fflush(stdout);
                 renderer_set_offset(&rnd, (size_t)panel_width_for(cols));
                 force_draw = true;
@@ -355,7 +357,7 @@ int main(int argc, char **argv) {
                 renderer_resize(&rnd, rows, cols, bars);
                 if (in_settings)
                     renderer_set_offset(&rnd, (size_t)panel_width_for(cols));
-                printf("\x1b[2J\x1b[H");
+                printf(CLEAR_ESC);
                 fflush(stdout);
                 force_draw = true;
             }
@@ -435,7 +437,7 @@ int main(int argc, char **argv) {
     if (!config_save(&cfg, save_path))
         fprintf(stderr, "sharkvis: could not save config to %s\n", save_path);
 
-    printf("\x1b[?25h\x1b[0m\x1b[2J\x1b[H");
+    printf("\x1b[?25h\x1b[0m" CLEAR_ESC);
     fflush(stdout);
     term_raw_restore(0);
 
