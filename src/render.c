@@ -173,12 +173,18 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     memset(r->prev, 0xFF, (size_t)rows * cols);
     r->lj_glow = calloc((size_t)rows * cols, 1);
     r->row_col = malloc((size_t)rows * 40);
+    r->rowbuf = malloc(cols);
+    r->db_x0 = 0;
+    r->db_y0 = 0;
+    r->db_x1 = cols ? cols - 1 : 0;
+    r->db_y1 = rows ? rows - 1 : 0;
 }
 
 void renderer_resize(renderer_t *r, unsigned rows, unsigned cols, size_t num_bars) {
     free(r->prev);
     free(r->lj_glow);
     free(r->row_col);
+    free(r->rowbuf);
     r->rows = rows;
     r->cols = cols;
     r->num_bars = num_bars;
@@ -187,6 +193,11 @@ void renderer_resize(renderer_t *r, unsigned rows, unsigned cols, size_t num_bar
     memset(r->prev, 0xFF, (size_t)rows * cols);
     r->lj_glow = calloc((size_t)rows * cols, 1);
     r->row_col = malloc((size_t)rows * 40);
+    r->rowbuf = malloc(cols);
+    r->db_x0 = 0;
+    r->db_y0 = 0;
+    r->db_x1 = cols ? cols - 1 : 0;
+    r->db_y1 = rows ? rows - 1 : 0;
 }
 
 void renderer_set_offset(renderer_t *r, size_t x_off) {
@@ -195,9 +206,15 @@ void renderer_set_offset(renderer_t *r, size_t x_off) {
     r->x_off = x_off;
     free(r->prev);
     free(r->lj_glow);
+    free(r->rowbuf);
     r->prev = malloc((size_t)r->rows * r->cols);
     memset(r->prev, 0xFF, (size_t)r->rows * r->cols);
     r->lj_glow = calloc((size_t)r->rows * r->cols, 1);
+    r->rowbuf = malloc(r->cols);
+    r->db_x0 = 0;
+    r->db_y0 = 0;
+    r->db_x1 = r->cols ? r->cols - 1 : 0;
+    r->db_y1 = r->rows ? r->rows - 1 : 0;
 }
 
 void renderer_set_mode(renderer_t *r, render_mode m) {
@@ -281,11 +298,17 @@ void renderer_feed(renderer_t *r, const double *left, const double *right,
 void renderer_clear(renderer_t *r) {
     if (r->prev)
         memset(r->prev, 0xFF, (size_t)r->rows * r->cols);
+    r->db_x0 = 0;
+    r->db_y0 = 0;
+    r->db_x1 = r->cols ? r->cols - 1 : 0;
+    r->db_y1 = r->rows ? r->rows - 1 : 0;
 }
 
 void renderer_free(renderer_t *r) {
     free(r->prev);
     r->prev = NULL;
+    free(r->rowbuf);
+    r->rowbuf = NULL;
     free(r->row_col);
     r->row_col = NULL;
     free(r->wave_buf);
@@ -451,11 +474,48 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
     }
 }
 
+static void emit_row(renderer_t *r, unsigned y, size_t x_start, size_t region_w,
+                     const unsigned char *tgt, color_state *st, char *out,
+                     size_t *out_len, size_t cap) {
+    size_t skip = 0;
+    bool wrote = false;
+    bool color_on = false;
+    for (size_t c = 0; c < region_w; c++) {
+        unsigned char gi = tgt[c];
+        size_t idx = (size_t)y * r->cols + x_start + c;
+        if (gi == r->prev[idx]) {
+            skip++;
+            continue;
+        }
+        r->prev[idx] = gi;
+        if (!wrote) {
+            seek_cell((long)y, (long)(x_start + c), out, out_len, cap);
+            wrote = true;
+        } else if (skip > 0) {
+            app(out, out_len, cap, "\x1b[");
+            appu(out, out_len, cap, (unsigned)skip);
+            app(out, out_len, cap, "C");
+        }
+        skip = 0;
+        if (gi > 0) {
+            if (!color_on) {
+                emit_color_state(st, r->row_col + (size_t)y * 40, out, out_len,
+                                 cap);
+                color_on = true;
+            }
+            app(out, out_len, cap, GLYPHS[gi]);
+        } else {
+            app(out, out_len, cap, " ");
+        }
+    }
+}
+
 static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
                       char *out, size_t *out_len, size_t cap) {
     if (!r->wave_buf || r->rows < 3 || region_w == 0)
         return;
     long yrow[4096];
+    long lo[4096], hi[4096];
     size_t ncol = region_w < 4096 ? region_w : 4096;
     if (ncol == 0)
         return;
@@ -468,6 +528,8 @@ static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
         size_t off = (region_w - 1 - c) * spc;
         if (off >= r->wave_filled) {
             yrow[c] = -1;
+            lo[c] = (long)r->rows;
+            hi[c] = -1;
             continue;
         }
         size_t idx = (r->wave_pos + r->wave_cap - 1 - off) % r->wave_cap;
@@ -479,36 +541,52 @@ static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
         yrow[c] = (long)(center - v * height + 0.5);
     }
 
-    color_state st = { 0 };
     for (size_t c = 0; c < ncol; c++) {
-        size_t x = x_start + c;
         long cur = yrow[c];
         if (cur < 0) {
-            for (unsigned y = 0; y < r->rows; y++)
-                emit_cell(r, y, x, 0, &st, out, out_len, cap);
+            lo[c] = -1;
+            hi[c] = -1;
             continue;
         }
-        long lo = cur, hi = cur;
+        long l = cur, h = cur;
         if (c + 1 < ncol && yrow[c + 1] >= 0) {
             long nxt = yrow[c + 1];
-            if (nxt < lo)
-                lo = nxt;
-            if (nxt > hi)
-                hi = nxt;
+            if (nxt < l)
+                l = nxt;
+            if (nxt > h)
+                h = nxt;
         } else if (c + 1 == ncol && c > 0 && yrow[c - 1] >= 0) {
             long nxt = yrow[c - 1]; /* cap the right edge to the previous column */
-            if (nxt < lo)
-                lo = nxt;
-            if (nxt > hi)
-                hi = nxt;
+            if (nxt < l)
+                l = nxt;
+            if (nxt > h)
+                h = nxt;
         }
-        for (unsigned y = 0; y < (unsigned)lo; y++)
-            emit_cell(r, y, x, 0, &st, out, out_len, cap);
-        for (long y = lo; y <= hi; y++)
-            emit_cell(r, (unsigned)y, x, 8, &st, out, out_len, cap);
-        for (unsigned y = (unsigned)hi + 1; y < r->rows; y++)
-            emit_cell(r, y, x, 0, &st, out, out_len, cap);
+        lo[c] = l;
+        hi[c] = h;
     }
+
+    color_state st = { 0 };
+    unsigned cy0 = r->rows, cy1 = 0;
+    for (size_t c = 0; c < ncol; c++) {
+        if (hi[c] >= 0 && lo[c] <= hi[c]) {
+            if ((unsigned)lo[c] < cy0)
+                cy0 = (unsigned)lo[c];
+            if ((unsigned)hi[c] > cy1)
+                cy1 = (unsigned)hi[c];
+        }
+    }
+    unsigned uy0 = cy0 < r->db_y0 ? cy0 : r->db_y0;
+    unsigned uy1 = cy1 > r->db_y1 ? cy1 : r->db_y1;
+    if (uy1 >= uy0) {
+        for (unsigned y = uy0; y <= uy1; y++) {
+            for (size_t c = 0; c < ncol; c++)
+                r->rowbuf[c] = (long)y >= lo[c] && (long)y <= hi[c] ? 8 : 0;
+            emit_row(r, y, x_start, ncol, r->rowbuf, &st, out, out_len, cap);
+        }
+    }
+    r->db_y0 = cy0;
+    r->db_y1 = cy1;
 }
 
 static void set_beam(renderer_t *r, long x, long y) {
@@ -546,6 +624,7 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
 
     memset(r->lj_glow, 0, (size_t)rows * cols);
 
+    unsigned cx0 = cols, cy0 = rows, cx1 = 0, cy1 = 0;
     size_t i;
     size_t n = r->lj_filled;
     if (n > r->lj_win)
@@ -584,19 +663,36 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
                 beam_line(r, px, py, xx, yy);
             else
                 set_beam(r, xx, yy);
+            if ((unsigned)xx < cx0)
+                cx0 = (unsigned)xx;
+            if ((unsigned)xx > cx1)
+                cx1 = (unsigned)xx;
+            if ((unsigned)yy < cy0)
+                cy0 = (unsigned)yy;
+            if ((unsigned)yy > cy1)
+                cy1 = (unsigned)yy;
             px = xx;
             py = yy;
         }
     }
 
     color_state st = { 0 };
-    for (unsigned y = 0; y < rows; y++) {
-        for (size_t x = x_start; x < x_start + region_w; x++) {
-            unsigned char g = r->lj_glow[(size_t)y * cols + x];
-            int gi = g ? 8 : 0;
-            emit_cell(r, y, x, gi, &st, out, out_len, cap);
+    unsigned ux0 = cx0 < r->db_x0 ? cx0 : r->db_x0;
+    unsigned ux1 = cx1 > r->db_x1 ? cx1 : r->db_x1;
+    unsigned uy0 = cy0 < r->db_y0 ? cy0 : r->db_y0;
+    unsigned uy1 = cy1 > r->db_y1 ? cy1 : r->db_y1;
+    if (ux1 >= ux0 && uy1 >= uy0) {
+        for (unsigned y = uy0; y <= uy1; y++) {
+            for (unsigned x = ux0; x <= ux1; x++)
+                r->rowbuf[x - ux0] = r->lj_glow[(size_t)y * cols + x] ? 8 : 0;
+            emit_row(r, y, ux0, (size_t)(ux1 - ux0 + 1), r->rowbuf, &st, out,
+                     out_len, cap);
         }
     }
+    r->db_x0 = cx0;
+    r->db_x1 = cx1;
+    r->db_y0 = cy0;
+    r->db_y1 = cy1;
 }
 
 void renderer_draw(renderer_t *r, const double *values, char *out, size_t *out_len,

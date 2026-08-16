@@ -24,6 +24,8 @@ typedef struct {
     render_mode mode;
     size_t x_off;
     unsigned char *prev;
+    unsigned char *rowbuf;
+    unsigned db_x0, db_y0, db_x1, db_y1;
     char *row_col;
     char barstr[9][32];
     char spacestr[32];
