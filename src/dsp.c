@@ -197,6 +197,8 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
         d->any_signal = false;
         for (size_t n = 0; n < d->number_of_bars; n++) {
             d->cava_mem[n] *= 0.5;
+            if (d->cava_mem[n] < 0.001)
+                d->cava_mem[n] = 0.001;
             cava_out[n] = d->cava_mem[n];
         }
         return;

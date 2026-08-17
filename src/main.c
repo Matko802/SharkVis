@@ -414,7 +414,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (need_draw && (force_draw || in_settings || !drop_next)) {
+        if (need_draw) {
             force_draw = false;
             drew = true;
             memcpy(last_h[0], heights[0], pcl * sizeof *last_h[0]);
