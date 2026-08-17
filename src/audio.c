@@ -111,7 +111,7 @@ static void *capture_thread(void *arg) {
     ba.tlength = (uint32_t)-1;
     ba.prebuf = (uint32_t)-1;
     ba.minreq = (uint32_t)-1;
-    ba.fragsize = (uint32_t)pa_usec_to_bytes(20000, &ss);
+    ba.fragsize = (uint32_t)pa_usec_to_bytes(5000, &ss);
     pa_simple *s = pa_simple_new(NULL, PA_APP, PA_STREAM_RECORD, dev, PA_STREAM, &ss,
                                  NULL, &ba, &error);
     free(monitor);

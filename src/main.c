@@ -12,7 +12,7 @@
 #include "settings.h"
 #include "term.h"
 
-#define VIS_EPS 0.01
+#define VIS_EPS 0.001
 
 #define CLEAR_ESC "\x1b[2J\x1b[3J\x1b[H"
 
@@ -375,10 +375,10 @@ int main(int argc, char **argv) {
         size_t n = audio_consume(&audio, &samples_l, &samples_r);
         if (n > 0) {
             renderer_feed(&rnd, samples_l, samples_r, n);
-            dsp_execute(&dsp[0], samples_l, n, heights[0]);
-            if (cfg.channels > 1 && samples_r)
-                dsp_execute(&dsp[1], samples_r, n, heights[1]);
         }
+        dsp_execute(&dsp[0], samples_l, n, heights[0]);
+        if (cfg.channels > 1)
+            dsp_execute(&dsp[1], samples_r ? samples_r : samples_l, n, heights[1]);
         if (audio_failed(&audio)) {
             fprintf(stderr, "\nsharkvis: audio input failed: %s\n", audio_error(&audio));
             rc = 1;
