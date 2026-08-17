@@ -195,6 +195,8 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
     } else {
         d->frame_skip++;
         d->any_signal = false;
+        for (size_t i = 0; i < d->input_buffer_size; i++)
+            d->input_buffer[i] *= 0.9;
     }
 
     if (now_ns() - d->last_fft_ns < d->fft_interval_ns)
