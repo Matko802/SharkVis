@@ -271,6 +271,12 @@ int main(int argc, char **argv) {
     heights[1] = malloc(bars * sizeof *heights[1]);
     last_h[0] = malloc(bars * sizeof *last_h[0]);
     last_h[1] = malloc(bars * sizeof *last_h[1]);
+    for (size_t i = 0; i < bars; i++) {
+        heights[0][i] = 0.001;
+        heights[1][i] = 0.001;
+        last_h[0][i] = 0.001;
+        last_h[1][i] = 0.001;
+    }
     char *out = malloc((size_t)1 << 20);
 
     settings_ui *st = settings_new();
