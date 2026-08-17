@@ -55,7 +55,7 @@ void dsp_init(dsp_t *d, size_t number_of_bars, unsigned rate, bool autosens,
     d->fft_size = pick_fft_size(rate);
     d->input_buffer_size = d->fft_size;
     d->last_fft_ns = 0;
-    d->fft_interval_ns = FFT_INTERVAL_NS;
+    d->fft_interval_ns = 0;
 
     d->max_bin =
         (size_t)ceil((double)high_cut_off / (double)rate * (double)d->fft_size);
