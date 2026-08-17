@@ -282,7 +282,6 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &next);
 
     int rc = 0;
-    bool drop_next = false;
     while (!g_sig) {
         struct timespec t_frame0;
         size_t last_bytes = 0;
@@ -449,14 +448,6 @@ int main(int argc, char **argv) {
         long frame_ns = (long)(1e9 / (cfg.framerate ? cfg.framerate : 1));
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
-        int behind = now.tv_sec > next.tv_sec ||
-                     (now.tv_sec == next.tv_sec && now.tv_nsec > next.tv_nsec);
-        if (behind) {
-            next = now;
-            drop_next = true;
-        } else {
-            drop_next = false;
-        }
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, NULL);
         next.tv_nsec += frame_ns;
         next.tv_sec += next.tv_nsec / 1000000000L;
@@ -465,9 +456,8 @@ int main(int argc, char **argv) {
             long iter_us = (now.tv_sec - t_frame0.tv_sec) * 1000000L +
                            (now.tv_nsec - t_frame0.tv_nsec) / 1000L;
             fprintf(g_dbg,
-                    "iter=%ldus write=%ldus bytes=%zu drew=%d behind=%d "
-                    "drop_next=%d fps=%u\n",
-                    iter_us, t_write_us, last_bytes, drew, behind, drop_next,
+                    "iter=%ldus write=%ldus bytes=%zu drew=%d fps=%u\n",
+                    iter_us, t_write_us, last_bytes, drew,
                     cfg.framerate);
             fflush(g_dbg);
         }

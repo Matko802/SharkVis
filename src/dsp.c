@@ -248,6 +248,11 @@ void dsp_execute(dsp_t *d, const double *cava_in, size_t new_samples_in,
                       cava_out[n] * (1.0 - d->noise_reduction);
         d->cava_mem[n] = cava_out[n];
 
+        if (!d->any_signal && cava_out[n] < 0.001) {
+            cava_out[n] = 0.001;
+            d->cava_mem[n] = 0.001;
+        }
+
         if (d->autosens) {
             if (cava_out[n] > 1.0) {
                 overshoot = true;
