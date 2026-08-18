@@ -4,9 +4,8 @@
     <h1>sharkvis</h1>
     <p>
         Linux only audio visualizer made in C 
+        Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https://github.com/PosixAlchemist/cli-visualizer)
 </div>
-
-Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https://github.com/PosixAlchemist/cli-visualizer)
 
 ## Features
 
