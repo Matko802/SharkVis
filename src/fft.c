@@ -7,14 +7,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-/*
- * Real-input radix-2 FFT.  Because the input is real, the n-point
- * transform is computed as a half-size complex transform on the packed
- * sequence z[j] = x[2j] + i*x[2j+1], followed by a single combining
- * pass.  This is exact (up to floating point rounding) and does roughly
- * half the work of a general complex transform of the same size.
- */
-
 void fft_init(fft_t *f, size_t n) {
     size_t bits = 0;
     while (((size_t)1 << bits) < n / 2)
