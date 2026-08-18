@@ -1,10 +1,12 @@
 <div align="center">
-  <img src="Logo/sharkvis.png" title="sharkvis" alt="sharkvis logo :3" width="120" />
-  <h1>sharkvis</h1>
-  <p>
-    Linux only audio visualizer made in C<br>
-    Inspired by <a href="https://github.com/karlstav/cava">cava</a> and <a href="https://github.com/PosixAlchemist/cli-visualizer">cli-visualizer</a>
-  </p>
+
+<img src="Logo/sharkvis.png" width="120" alt="sharkvis logo :3" />
+
+# sharkvis
+
+Linux only audio visualizer made in C  
+Inspired by [cava](https://github.com/karlstav/cava) and [cli-visualizer](https://github.com/PosixAlchemist/cli-visualizer)
+
 </div>
 
 ## Features
