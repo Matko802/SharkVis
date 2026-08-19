@@ -5,7 +5,7 @@
 # sharkvis
 
 Linux only audio visualizer made in C
-<sub>*(fully vibecoded tbh so dont praise me this is just personal project)*</sub>
+(fully vibecoded tbh so dont praise me this is just personal project)
 
 Inspired by <sub>[cava](https://github.com/karlstav/cava)</sub> and <sub>[cli-visualizer](https://github.com/PosixAlchemist/cli-visualizer)</sub>
 
