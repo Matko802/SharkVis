@@ -6,8 +6,6 @@
 
 Linux only audio visualizer made in C
 
-<sub>*(fully vibecoded tbh so don't support it, this is just personal project)*</sub>
-
 Inspired by <sub>[cava](https://github.com/karlstav/cava)</sub> and <sub>[cli-visualizer](https://github.com/PosixAlchemist/cli-visualizer)</sub>
 
 </div>
