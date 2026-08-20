@@ -140,4 +140,4 @@ nix develop github:Matko802/sharkvis
 
 ## License
 
-This project is released under the MIT License. See LICENSE.txt.
+This project is released under the MIT License. See [LICENSE.txt](https://github.com/Matko802/sharkvis/blob/main/LICENSE).
