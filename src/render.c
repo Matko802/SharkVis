@@ -599,13 +599,9 @@ static void draw_wave(renderer_t *r, size_t x_start, size_t region_w,
     unsigned uy0 = cy0 < r->db_y0 ? cy0 : r->db_y0;
     unsigned uy1 = cy1 > r->db_y1 ? cy1 : r->db_y1;
     if (uy1 >= uy0) {
-        unsigned rdiv = r->rows > 1 ? r->rows - 1 : 1;
         for (unsigned y = uy0; y <= uy1; y++) {
-            unsigned char lvl = (unsigned char)(1 + (y * 7) / rdiv);
-            if (lvl > 8)
-                lvl = 8;
             for (size_t c = 0; c < ncol; c++)
-                r->rowbuf[c] = (long)y >= lo[c] && (long)y <= hi[c] ? lvl : 0;
+                r->rowbuf[c] = (long)y >= lo[c] && (long)y <= hi[c] ? 8 : 0;
             emit_row(r, y, x_start, ncol, r->rowbuf, &st, out, out_len, cap);
         }
     }
@@ -706,14 +702,9 @@ static void draw_lissajous(renderer_t *r, size_t x_start, size_t region_w,
     unsigned uy0 = cy0 < r->db_y0 ? cy0 : r->db_y0;
     unsigned uy1 = cy1 > r->db_y1 ? cy1 : r->db_y1;
     if (ux1 >= ux0 && uy1 >= uy0) {
-        unsigned rdiv = rows > 1 ? rows - 1 : 1;
         for (unsigned y = uy0; y <= uy1; y++) {
-            unsigned char lvl = (unsigned char)(1 + (y * 7) / rdiv);
-            if (lvl > 8)
-                lvl = 8;
             for (unsigned x = ux0; x <= ux1; x++)
-                r->rowbuf[x - ux0] =
-                    r->lj_glow[(size_t)y * cols + x] ? lvl : 0;
+                r->rowbuf[x - ux0] = r->lj_glow[(size_t)y * cols + x] ? 8 : 0;
             emit_row(r, y, ux0, (size_t)(ux1 - ux0 + 1), r->rowbuf, &st, out,
                      out_len, cap);
         }
