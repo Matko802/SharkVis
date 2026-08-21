@@ -310,22 +310,15 @@ int main(int argc, char **argv) {
 
         if (in_settings) {
             if (settings_is_editing(st)) {
-                for (;;) {
-                    char ecp[8];
-                    int ek = term_read_codepoint(0, ecp, sizeof ecp);
-                    if (ek == KEY_ESC) {
-                        settings_edit_key(st, &cfg, KEY_ESC, NULL, &chmask);
-                        break;
-                    } else if (ek == KEY_ENTER) {
-                        settings_edit_key(st, &cfg, KEY_ENTER, NULL, &chmask);
-                        break;
-                    } else if (ek == KEY_BACKSPACE) {
-                        settings_edit_key(st, &cfg, KEY_BACKSPACE, NULL, &chmask);
-                    } else if (ek == KEY_CHAR) {
-                        settings_edit_key(st, &cfg, KEY_CHAR, ecp, &chmask);
-                    }
-                    force_draw = true;
-                }
+                if (key == KEY_ESC)
+                    settings_edit_key(st, &cfg, KEY_ESC, NULL, &chmask);
+                else if (key == KEY_ENTER)
+                    settings_edit_key(st, &cfg, KEY_ENTER, NULL, &chmask);
+                else if (key == KEY_BACKSPACE)
+                    settings_edit_key(st, &cfg, KEY_BACKSPACE, NULL, &chmask);
+                else if (key == KEY_CHAR)
+                    settings_edit_key(st, &cfg, KEY_CHAR, cp, &chmask);
+                force_draw = true;
                 if (chmask) {
                     apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,
                                    last_h, rows, cols, chmask,
