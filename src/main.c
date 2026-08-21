@@ -1,7 +1,9 @@
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -90,6 +92,32 @@ static bool is_k(int key, const char *cp, int ch) {
     if (key == KEY_CHAR && cp && cp[0] == (char)ch)
         return true;
     return false;
+}
+
+static void run_editor(const char *path) {
+    printf("\x1b[0m\x1b[2J\x1b[H\x1b[?25h");
+    fflush(stdout);
+    term_raw_restore(0);
+
+    void (*old_int)(int) = signal(SIGINT, SIG_IGN);
+    pid_t pid = fork();
+    if (pid == 0) {
+        signal(SIGINT, SIG_DFL);
+        execlp("nano", "nano", path, (char *)NULL);
+        _exit(127);
+    }
+    if (pid > 0) {
+        int status = 0;
+        while (waitpid(pid, &status, 0) < 0 && errno == EINTR)
+            ;
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 127)
+            fprintf(stderr, "sharkvis: could not launch nano\n");
+    }
+    signal(SIGINT, old_int);
+
+    term_raw_enter(0);
+    printf("\x1b[2J\x1b[H\x1b[?25l");
+    fflush(stdout);
 }
 
 static void apply_colors(renderer_t *rnd, const srk_config *cfg) {
@@ -309,30 +337,7 @@ int main(int argc, char **argv) {
         int key = term_read_codepoint(0, cp, sizeof cp);
 
         if (in_settings) {
-            if (settings_is_editing(st)) {
-                if (key == KEY_ESC)
-                    settings_edit_key(st, &cfg, KEY_ESC, NULL, &chmask);
-                else if (key == KEY_ENTER)
-                    settings_edit_key(st, &cfg, KEY_ENTER, NULL, &chmask);
-                else if (key == KEY_BACKSPACE)
-                    settings_edit_key(st, &cfg, KEY_BACKSPACE, NULL, &chmask);
-                else if (key == KEY_CHAR)
-                    settings_edit_key(st, &cfg, KEY_CHAR, cp, &chmask);
-                else if (key == 3)
-                    break;
-                force_draw = true;
-                if (chmask) {
-                    apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,
-                                   last_h, rows, cols, chmask,
-                                   !!(chmask & CH_AUDIO),
-                                   (size_t)panel_width_for(cols));
-                    printf(CLEAR_ESC);
-                    fflush(stdout);
-                    chmask = 0;
-                    force_draw = true;
-                }
-            } else if (is_k(key, cp, 'g') || is_k(key, cp, 'G') ||
-                       key == KEY_ESC) {
+            if (is_k(key, cp, 'g') || is_k(key, cp, 'G') || key == KEY_ESC) {
                 in_settings = false;
                 printf(CLEAR_ESC);
                 fflush(stdout);
@@ -348,6 +353,39 @@ int main(int argc, char **argv) {
             } else {
                 settings_key(st, &cfg, key, key == KEY_CHAR ? cp : NULL,
                              &chmask);
+                if (chmask & CH_EDITOR) {
+                    chmask = 0;
+                    if (!config_save(&cfg, save_path))
+                        fprintf(stderr,
+                                "sharkvis: could not save config to %s\n",
+                                save_path);
+                    run_editor(save_path);
+                    if (!config_load(&cfg, save_path))
+                        fprintf(stderr,
+                                "sharkvis: error loading config %s\n",
+                                save_path);
+                    if (cfg.bar_width < 1)
+                        cfg.bar_width = 1;
+                    if (cfg.framerate < 1)
+                        cfg.framerate = 1;
+                    if (cfg.framerate > 240)
+                        cfg.framerate = 240;
+                    if (cfg.sensitivity < 0.1)
+                        cfg.sensitivity = 0.1;
+                    if (cfg.noise_reduction < 0.0)
+                        cfg.noise_reduction = 0.0;
+                    if (cfg.noise_reduction > 1.0)
+                        cfg.noise_reduction = 1.0;
+                    if (cfg.lower_cutoff < 1)
+                        cfg.lower_cutoff = 1;
+                    if (cfg.higher_cutoff < cfg.lower_cutoff)
+                        cfg.higher_cutoff = cfg.lower_cutoff + 1;
+                    if (cfg.channels < 1)
+                        cfg.channels = 1;
+                    if (cfg.channels > 2)
+                        cfg.channels = 2;
+                    chmask = CH_LAYOUT | CH_DSP | CH_AUDIO;
+                }
                 if (chmask) {
                     apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,
                                    last_h, rows, cols, chmask,

@@ -7,7 +7,6 @@
 #include <time.h>
 
 #include "term.h"
-#include "render.h"
 
 typedef enum {
     S_BARS,
@@ -76,9 +75,6 @@ struct settings_ui {
     int sel;
     bool confirm_reset;
     long confirm_deadline_ms;
-    bool editing;
-    char edit[256];
-    size_t edit_len;
 };
 
 static long now_ms(void) {
@@ -267,7 +263,7 @@ void settings_key(settings_ui *s, srk_config *cfg, int key, const char *cp,
         break;
     case KEY_ENTER:
         if (s->sel == S_CHARSET)
-            settings_edit_begin(s, cfg);
+            *changed |= CH_EDITOR;
         break;
     case KEY_CHAR:
         if (!cp)
@@ -282,55 +278,6 @@ void settings_key(settings_ui *s, srk_config *cfg, int key, const char *cp,
         break;
     default:
         break;
-    }
-}
-
-void settings_edit_begin(settings_ui *s, const srk_config *cfg) {
-    s->editing = true;
-    const char *g = cfg->glyphs ? cfg->glyphs : "";
-    size_t l = strlen(g);
-    if (l >= sizeof s->edit)
-        l = sizeof s->edit - 1;
-    memcpy(s->edit, g, l);
-    s->edit_len = l;
-    s->edit[s->edit_len] = '\0';
-}
-
-bool settings_is_editing(const settings_ui *s) {
-    return s->editing;
-}
-
-void settings_edit_key(settings_ui *s, srk_config *cfg, int code, const char *cp,
-                      unsigned *changed) {
-    if (code == KEY_ESC) {
-        s->editing = false;
-        return;
-    }
-    if (code == KEY_ENTER) {
-        free(cfg->glyphs);
-        cfg->glyphs = strdup(s->edit);
-        s->editing = false;
-        *changed |= CH_LAYOUT;
-        return;
-    }
-    if (code == KEY_BACKSPACE) {
-        if (s->edit_len == 0)
-            return;
-        size_t i = s->edit_len;
-        while (i > 0 && ((unsigned char)s->edit[i - 1] & 0xC0) == 0x80)
-            i--;
-        s->edit_len = i;
-        s->edit[i] = '\0';
-        return;
-    }
-    if (code == KEY_CHAR && cp && *cp) {
-        size_t add = strlen(cp);
-        if (s->edit_len + add < sizeof s->edit) {
-            memcpy(s->edit + s->edit_len, cp, add);
-            s->edit_len += add;
-            s->edit[s->edit_len] = '\0';
-        }
-        return;
     }
 }
 
@@ -461,22 +408,16 @@ void settings_draw(settings_ui *s, const srk_config *cfg, char *out,
     unsigned y = 6;
     for (int id = 0; id < S_COUNT; id++) {
         char val[32];
-        const char *disp;
-        if (id == S_CHARSET && s->editing)
-            disp = s->edit;
-        else {
-            format_value(cfg, id, val, sizeof val);
-            disp = val;
-        }
-        panel_row(out, &n, cap, y++, panel_width, LABELS[id], disp,
+        format_value(cfg, id, val, sizeof val);
+        panel_row(out, &n, cap, y++, panel_width, LABELS[id], val,
                   id == s->sel ? "\x1b[7m" : NULL);
     }
-    if (s->editing && s->sel == S_CHARSET)
-        panel_row(out, &n, cap, y, panel_width,
-                  "enter=save  esc=cancel  empty=default", NULL, "\x1b[7m");
-    else if (s->confirm_reset)
+    if (s->confirm_reset)
         panel_row(out, &n, cap, y, panel_width, "Are you sure?", "press → again",
                   "\x1b[41m\x1b[97m");
+    else if (s->sel == S_CHARSET)
+        panel_row(out, &n, cap, y, panel_width, "edit bar symbols", "enter = nano",
+                  NULL);
     else
         panel_row(out, &n, cap, y, panel_width, "reset to defaults", "press →",
                   s->sel == S_RESET ? "\x1b[7m" : NULL);
