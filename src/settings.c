@@ -244,9 +244,6 @@ static void handle_reset(settings_ui *s, srk_config *cfg, unsigned *changed) {
 
 void settings_key(settings_ui *s, srk_config *cfg, int key, const char *cp,
                  unsigned *changed) {
-    bool is_minus = key == '-' || (key == KEY_CHAR && cp && cp[0] == '-');
-    bool is_plus = key == '+' || key == '=' ||
-                   (key == KEY_CHAR && cp && (cp[0] == '+' || cp[0] == '='));
     switch (key) {
     case KEY_UP:
         s->sel = (s->sel + S_ROWS - 1) % S_ROWS;
@@ -257,30 +254,31 @@ void settings_key(settings_ui *s, srk_config *cfg, int key, const char *cp,
         s->confirm_reset = false;
         break;
     case KEY_LEFT:
-    case KEY_ENTER:
-        if (key == KEY_ENTER && s->sel == S_CHARSET) {
-            settings_edit_begin(s, cfg);
-            break;
-        }
         if (s->sel == S_RESET)
             handle_reset(s, cfg, changed);
-        else if (is_minus)
+        else
             adjust(cfg, s->sel, -1, changed);
         break;
     case KEY_RIGHT:
         if (s->sel == S_RESET)
             handle_reset(s, cfg, changed);
-        else if (is_plus)
+        else
             adjust(cfg, s->sel, +1, changed);
         break;
-    case '-':
-        if (s->sel != S_RESET)
-            adjust(cfg, s->sel, -1, changed);
+    case KEY_ENTER:
+        if (s->sel == S_CHARSET)
+            settings_edit_begin(s, cfg);
         break;
-    case '+':
-    case '=':
-        if (s->sel != S_RESET)
-            adjust(cfg, s->sel, +1, changed);
+    case KEY_CHAR:
+        if (!cp)
+            break;
+        if (cp[0] == '-') {
+            if (s->sel != S_RESET)
+                adjust(cfg, s->sel, -1, changed);
+        } else if (cp[0] == '+' || cp[0] == '=') {
+            if (s->sel != S_RESET)
+                adjust(cfg, s->sel, +1, changed);
+        }
         break;
     default:
         break;
