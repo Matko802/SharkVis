@@ -28,6 +28,7 @@ typedef struct {
     char barstr[9][32];
     char spacestr[32];
     size_t barstr_bw;
+    const char *const *glyphs;
     double *wave_buf;
     size_t wave_cap;
     size_t wave_pos;
@@ -50,6 +51,9 @@ void renderer_resize(renderer_t *r, unsigned rows, unsigned cols, size_t num_bar
 void renderer_set_offset(renderer_t *r, size_t x_off);
 void renderer_set_mode(renderer_t *r, render_mode m);
 render_mode renderer_mode_parse(const char *name);
+void renderer_set_charset(renderer_t *r, const char *name);
+const char *renderer_charset_name(const renderer_t *r);
+const char *const *renderer_charset_names(size_t *n);
 void renderer_set_wave(renderer_t *r, unsigned sample_rate);
 void renderer_feed(renderer_t *r, const double *left, const double *right, size_t n);
 void renderer_clear(renderer_t *r);

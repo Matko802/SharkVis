@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *const GLYPHS[9] = {
+static const char *const CHARS_BLOCKS[9] = {
     " ",
     "\xe2\x96\x81", /* ▁ */
     "\xe2\x96\x82", /* ▂ */
@@ -15,6 +15,72 @@ static const char *const GLYPHS[9] = {
     "\xe2\x96\x87", /* ▇ */
     "\xe2\x96\x88", /* █ */
 };
+
+static const char *const CHARS_BARS[9] = {
+    " ",
+    "\xe2\x96\x8f", /* ▏ */
+    "\xe2\x96\x8e", /* ▎ */
+    "\xe2\x96\x8d", /* ▍ */
+    "\xe2\x96\x8c", /* ▌ */
+    "\xe2\x96\x8b", /* ▋ */
+    "\xe2\x96\x8a", /* ▊ */
+    "\xe2\x96\x89", /* ▉ */
+    "\xe2\x96\x88", /* █ */
+};
+
+static const char *const CHARS_SHADE[9] = {
+    " ",
+    " ",
+    "\xe2\x96\x91", /* ░ */
+    "\xe2\x96\x91", /* ░ */
+    "\xe2\x96\x92", /* ▒ */
+    "\xe2\x96\x92", /* ▒ */
+    "\xe2\x96\x93", /* ▓ */
+    "\xe2\x96\x93", /* ▓ */
+    "\xe2\x96\x88", /* █ */
+};
+
+static const char *const CHARS_ASCII[9] = {
+    " ", ".", ":", "-", "=", "+", "*", "#", "@"
+};
+
+typedef struct {
+    const char *name;
+    const char *const *tbl;
+} charset_def;
+
+static const charset_def CHARSETS[] = {
+    { "blocks", CHARS_BLOCKS },
+    { "bars",   CHARS_BARS },
+    { "shade",  CHARS_SHADE },
+    { "ascii",  CHARS_ASCII },
+};
+#define CHARSETS_N ((int)(sizeof CHARSETS / sizeof CHARSETS[0]))
+
+const char *const *renderer_charset_names(size_t *n) {
+    static const char *names[CHARSETS_N];
+    for (int i = 0; i < CHARSETS_N; i++)
+        names[i] = CHARSETS[i].name;
+    *n = (size_t)CHARSETS_N;
+    return names;
+}
+
+const char *renderer_charset_name(const renderer_t *r) {
+    for (int i = 0; i < CHARSETS_N; i++)
+        if (r->glyphs == CHARSETS[i].tbl)
+            return CHARSETS[i].name;
+    return "blocks";
+}
+
+void renderer_set_charset(renderer_t *r, const char *name) {
+    for (int i = 0; i < CHARSETS_N; i++) {
+        if (name && strcmp(name, CHARSETS[i].name) == 0) {
+            r->glyphs = CHARSETS[i].tbl;
+            return;
+        }
+    }
+    r->glyphs = CHARS_BLOCKS;
+}
 
 static void app(char *out, size_t *olen, size_t cap, const char *s) {
     while (*s && *olen < cap)
@@ -133,7 +199,7 @@ static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *
         app(out, out_len, cap, " ");
     } else {
         emit_color_state(st, r->row_col + (size_t)y * 40, out, out_len, cap);
-        app(out, out_len, cap, GLYPHS[gi]);
+        app(out, out_len, cap, r->glyphs[gi]);
     }
 }
 
@@ -145,6 +211,7 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->bar_spacing = bar_spacing;
     r->num_bars = num_bars;
     r->color_256 = false;
+    r->glyphs = CHARS_BLOCKS;
     r->grad_lo = 0xff0000u;
     r->grad_hi = 0x00ff00u;
     r->mode = RENDER_BARS;
@@ -325,7 +392,7 @@ static void build_barstrings(renderer_t *r) {
     for (int gi = 0; gi <= 8; gi++) {
         size_t o = 0;
         for (size_t w = 0; w < bw && o + 3 < sizeof r->barstr[gi]; w++)
-            app(r->barstr[gi], &o, sizeof r->barstr[gi], GLYPHS[gi]);
+            app(r->barstr[gi], &o, sizeof r->barstr[gi], r->glyphs[gi]);
         r->barstr[gi][o] = '\0';
     }
     size_t o = 0;
@@ -421,11 +488,11 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
                                      out_len, cap);
                     color_on = true;
                 }
-                if (wvis == bw)
-                    app(out, out_len, cap, r->barstr[gi]);
-                else
-                    for (size_t w = 0; w < wvis; w++)
-                        app(out, out_len, cap, GLYPHS[gi]);
+            if (wvis == bw)
+                app(out, out_len, cap, r->barstr[gi]);
+            else
+                for (size_t w = 0; w < wvis; w++)
+                    app(out, out_len, cap, r->glyphs[gi]);
             } else {
                 if (wvis == bw)
                     app(out, out_len, cap, r->spacestr);
@@ -495,7 +562,7 @@ static void emit_row(renderer_t *r, unsigned y, size_t x_start, size_t region_w,
                                  cap);
                 color_on = true;
             }
-            app(out, out_len, cap, GLYPHS[gi]);
+            app(out, out_len, cap, r->glyphs[gi]);
         } else {
             app(out, out_len, cap, " ");
         }

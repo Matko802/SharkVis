@@ -7,6 +7,7 @@
 #include <time.h>
 
 #include "term.h"
+#include "render.h"
 
 typedef enum {
     S_BARS,
@@ -24,6 +25,7 @@ typedef enum {
     S_MODE,
     S_RATE,
     S_CH,
+    S_CHARSET,
     S_COUNT,
 } sid;
 
@@ -47,6 +49,7 @@ static const char *const LABELS[S_COUNT] = {
     "visualizer",
     "sample rate",
     "channels",
+    "charset",
 };
 
 static const unsigned RATES[] = { 8000, 11025, 16000, 22050, 32000, 44100,
@@ -221,6 +224,24 @@ static void adjust(srk_config *c, int id, int dir, unsigned *changed) {
         }
         break;
     }
+    case S_CHARSET: {
+        size_t n = 0;
+        const char *const *names = renderer_charset_names(&n);
+        int idx = 0;
+        for (size_t i = 0; i < n; i++) {
+            if (c->charset && strcmp(c->charset, names[i]) == 0) {
+                idx = (int)i;
+                break;
+            }
+        }
+        int ni = (idx + dir + (int)n) % (int)n;
+        if (!c->charset || strcmp(c->charset, names[ni]) != 0) {
+            free(c->charset);
+            c->charset = strdup(names[ni]);
+            *changed |= CH_LAYOUT;
+        }
+        break;
+    }
     }
 }
 
@@ -316,6 +337,9 @@ static void format_value(const srk_config *c, int id, char *buf, size_t n) {
         break;
     case S_CH:
         snprintf(buf, n, "%u", c->channels);
+        break;
+    case S_CHARSET:
+        snprintf(buf, n, "%s", c->charset ? c->charset : "blocks");
         break;
     default:
         buf[0] = '\0';

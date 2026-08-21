@@ -131,6 +131,7 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
     rnd->color_256 = cfg->color_256;
     apply_colors(rnd, cfg);
     renderer_set_mode(rnd, renderer_mode_parse(cfg->mode ? cfg->mode : "bars"));
+    renderer_set_charset(rnd, cfg->charset ? cfg->charset : "blocks");
     renderer_set_wave(rnd, cfg->sample_rate);
     renderer_set_offset(rnd, x_off);
     renderer_clear(rnd);
@@ -263,6 +264,7 @@ int main(int argc, char **argv) {
     renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars);
     apply_colors(&rnd, &cfg);
     renderer_set_mode(&rnd, renderer_mode_parse(cfg.mode ? cfg.mode : "bars"));
+    renderer_set_charset(&rnd, cfg.charset ? cfg.charset : "blocks");
     renderer_set_wave(&rnd, cfg.sample_rate);
 
     double *heights[2];
