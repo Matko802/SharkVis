@@ -318,6 +318,8 @@ int main(int argc, char **argv) {
                     settings_edit_key(st, &cfg, KEY_BACKSPACE, NULL, &chmask);
                 else if (key == KEY_CHAR)
                     settings_edit_key(st, &cfg, KEY_CHAR, cp, &chmask);
+                else if (key == 3)
+                    break;
                 force_draw = true;
                 if (chmask) {
                     apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,

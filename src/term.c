@@ -93,6 +93,8 @@ int term_read_codepoint(int fd, char *out, size_t cap) {
         return KEY_ENTER;
     if (c == 0x7f || c == 0x08)
         return KEY_BACKSPACE;
+    if (c < 0x20)
+        return c; /* raw control code, e.g. 0x03 = Ctrl+C */
 
     size_t need;
     if (c < 0x80)
