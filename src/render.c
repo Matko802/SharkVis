@@ -4,82 +4,42 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *const CHARS_BLOCKS[9] = {
-    " ",
-    "\xe2\x96\x81", /* ▁ */
-    "\xe2\x96\x82", /* ▂ */
-    "\xe2\x96\x83", /* ▃ */
-    "\xe2\x96\x84", /* ▄ */
-    "\xe2\x96\x85", /* ▅ */
-    "\xe2\x96\x86", /* ▆ */
-    "\xe2\x96\x87", /* ▇ */
-    "\xe2\x96\x88", /* █ */
-};
+static const char *const DEFAULT_GLYPHS =
+    "\xe2\x96\x81\xe2\x96\x82\xe2\x96\x83\xe2\x96\x84\xe2\x96\x85\xe2\x96\x86"
+    "\xe2\x96\x87\xe2\x96\x88"; /* ▁▂▃▄▅▆▇█ */
 
-static const char *const CHARS_BARS[9] = {
-    " ",
-    "\xe2\x96\x8f", /* ▏ */
-    "\xe2\x96\x8e", /* ▎ */
-    "\xe2\x96\x8d", /* ▍ */
-    "\xe2\x96\x8c", /* ▌ */
-    "\xe2\x96\x8b", /* ▋ */
-    "\xe2\x96\x8a", /* ▊ */
-    "\xe2\x96\x89", /* ▉ */
-    "\xe2\x96\x88", /* █ */
-};
-
-static const char *const CHARS_SHADE[9] = {
-    " ",
-    " ",
-    "\xe2\x96\x91", /* ░ */
-    "\xe2\x96\x91", /* ░ */
-    "\xe2\x96\x92", /* ▒ */
-    "\xe2\x96\x92", /* ▒ */
-    "\xe2\x96\x93", /* ▓ */
-    "\xe2\x96\x93", /* ▓ */
-    "\xe2\x96\x88", /* █ */
-};
-
-static const char *const CHARS_ASCII[9] = {
-    " ", ".", ":", "-", "=", "+", "*", "#", "@"
-};
-
-typedef struct {
-    const char *name;
-    const char *const *tbl;
-} charset_def;
-
-static const charset_def CHARSETS[] = {
-    { "blocks", CHARS_BLOCKS },
-    { "bars",   CHARS_BARS },
-    { "shade",  CHARS_SHADE },
-    { "ascii",  CHARS_ASCII },
-};
-#define CHARSETS_N ((int)(sizeof CHARSETS / sizeof CHARSETS[0]))
-
-const char *const *renderer_charset_names(size_t *n) {
-    static const char *names[CHARSETS_N];
-    for (int i = 0; i < CHARSETS_N; i++)
-        names[i] = CHARSETS[i].name;
-    *n = (size_t)CHARSETS_N;
-    return names;
+static const char *render_glyph(renderer_t *r, int gi) {
+    if (gi <= 0)
+        return " ";
+    if (r->glyph_n <= 0)
+        return " ";
+    int n = r->glyph_n;
+    int idx = (int)((double)(gi - 1) * (n - 1) / 7.0 + 0.5);
+    if (idx < 0)
+        idx = 0;
+    if (idx >= n)
+        idx = n - 1;
+    return r->glyphs[idx];
 }
 
-const char *renderer_charset_name(const renderer_t *r) {
-    for (int i = 0; i < CHARSETS_N; i++)
-        if (r->glyphs == CHARSETS[i].tbl)
-            return CHARSETS[i].name;
-    return "blocks";
-}
-
-void renderer_set_charset(renderer_t *r, const char *name) {
-    for (int i = 0; i < CHARSETS_N; i++) {
-        if (name && strcmp(name, CHARSETS[i].name) == 0) {
-            r->glyphs = CHARSETS[i].tbl;
-            return;
+void renderer_set_glyphs(renderer_t *r, const char *str) {
+    const char *src = (str && *str) ? str : DEFAULT_GLYPHS;
+    r->glyph_n = 0;
+    const unsigned char *p = (const unsigned char *)src;
+    while (*p && r->glyph_n < 64) {
+        unsigned char c = *p;
+        size_t seq = (c < 0x80) ? 1 : ((c & 0xE0) == 0xC0 ? 2 :
+                                      (c & 0xF0) == 0xE0 ? 3 : 4);
+        char *dst = r->glyphs[r->glyph_n];
+        size_t i = 0;
+        while (i < seq && i < 7 && *p) {
+            dst[i++] = (char)*p++;
         }
+        dst[i] = '\0';
+        r->glyph_n++;
     }
-    r->glyphs = CHARS_BLOCKS;
+    if (r->glyph_n == 0)
+        r->glyph_n = 1;
 }
 
 static void app(char *out, size_t *olen, size_t cap, const char *s) {
@@ -199,7 +159,7 @@ static void emit_cell(renderer_t *r, unsigned y, size_t x, int gi, color_state *
         app(out, out_len, cap, " ");
     } else {
         emit_color_state(st, r->row_col + (size_t)y * 40, out, out_len, cap);
-        app(out, out_len, cap, r->glyphs[gi]);
+        app(out, out_len, cap, render_glyph(r, gi));
     }
 }
 
@@ -211,7 +171,7 @@ void renderer_init(renderer_t *r, unsigned rows, unsigned cols, size_t bar_width
     r->bar_spacing = bar_spacing;
     r->num_bars = num_bars;
     r->color_256 = false;
-    r->glyphs = CHARS_BLOCKS;
+    renderer_set_glyphs(r, NULL);
     r->grad_lo = 0xff0000u;
     r->grad_hi = 0x00ff00u;
     r->mode = RENDER_BARS;
@@ -392,7 +352,7 @@ static void build_barstrings(renderer_t *r) {
     for (int gi = 0; gi <= 8; gi++) {
         size_t o = 0;
         for (size_t w = 0; w < bw && o + 3 < sizeof r->barstr[gi]; w++)
-            app(r->barstr[gi], &o, sizeof r->barstr[gi], r->glyphs[gi]);
+            app(r->barstr[gi], &o, sizeof r->barstr[gi], render_glyph(r, gi));
         r->barstr[gi][o] = '\0';
     }
     size_t o = 0;
@@ -492,7 +452,7 @@ static void draw_bars(renderer_t *r, const double *left, const double *right,
                 app(out, out_len, cap, r->barstr[gi]);
             else
                 for (size_t w = 0; w < wvis; w++)
-                    app(out, out_len, cap, r->glyphs[gi]);
+                    app(out, out_len, cap, render_glyph(r, gi));
             } else {
                 if (wvis == bw)
                     app(out, out_len, cap, r->spacestr);
@@ -562,7 +522,7 @@ static void emit_row(renderer_t *r, unsigned y, size_t x_start, size_t region_w,
                                  cap);
                 color_on = true;
             }
-            app(out, out_len, cap, r->glyphs[gi]);
+            app(out, out_len, cap, render_glyph(r, gi));
         } else {
             app(out, out_len, cap, " ");
         }

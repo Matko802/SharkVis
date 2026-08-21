@@ -84,6 +84,14 @@ static size_t per_ch_right(size_t bars, unsigned channels) {
     return bars;
 }
 
+static bool is_k(int key, const char *cp, int ch) {
+    if (key == ch)
+        return true;
+    if (key == KEY_CHAR && cp && cp[0] == (char)ch)
+        return true;
+    return false;
+}
+
 static void apply_colors(renderer_t *rnd, const srk_config *cfg) {
     unsigned r, g, b;
     if (color_to_rgb(cfg->gradient_low, &r, &g, &b) == 0)
@@ -131,7 +139,7 @@ static void apply_settings(dsp_t dsp[2], renderer_t *rnd, audio_t *audio,
     rnd->color_256 = cfg->color_256;
     apply_colors(rnd, cfg);
     renderer_set_mode(rnd, renderer_mode_parse(cfg->mode ? cfg->mode : "bars"));
-    renderer_set_charset(rnd, cfg->charset ? cfg->charset : "blocks");
+    renderer_set_glyphs(rnd, cfg->glyphs);
     renderer_set_wave(rnd, cfg->sample_rate);
     renderer_set_offset(rnd, x_off);
     renderer_clear(rnd);
@@ -264,7 +272,7 @@ int main(int argc, char **argv) {
     renderer_init(&rnd, rows, cols, cfg.bar_width, cfg.bar_spacing, bars);
     apply_colors(&rnd, &cfg);
     renderer_set_mode(&rnd, renderer_mode_parse(cfg.mode ? cfg.mode : "bars"));
-    renderer_set_charset(&rnd, cfg.charset ? cfg.charset : "blocks");
+    renderer_set_glyphs(&rnd, cfg.glyphs);
     renderer_set_wave(&rnd, cfg.sample_rate);
 
     double *heights[2];
@@ -297,10 +305,39 @@ int main(int argc, char **argv) {
         bool drew = false;
         if (g_debug)
             clock_gettime(CLOCK_MONOTONIC, &t_frame0);
-        int key = term_read_key(0);
+        char cp[8];
+        int key = term_read_codepoint(0, cp, sizeof cp);
 
         if (in_settings) {
-            if (key == 'g' || key == 'G' || key == KEY_ESC) {
+            if (settings_is_editing(st)) {
+                for (;;) {
+                    char ecp[8];
+                    int ek = term_read_codepoint(0, ecp, sizeof ecp);
+                    if (ek == KEY_ESC) {
+                        settings_edit_key(st, &cfg, KEY_ESC, NULL, &chmask);
+                        break;
+                    } else if (ek == KEY_ENTER) {
+                        settings_edit_key(st, &cfg, KEY_ENTER, NULL, &chmask);
+                        break;
+                    } else if (ek == KEY_BACKSPACE) {
+                        settings_edit_key(st, &cfg, KEY_BACKSPACE, NULL, &chmask);
+                    } else if (ek == KEY_CHAR) {
+                        settings_edit_key(st, &cfg, KEY_CHAR, ecp, &chmask);
+                    }
+                    force_draw = true;
+                }
+                if (chmask) {
+                    apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,
+                                   last_h, rows, cols, chmask,
+                                   !!(chmask & CH_AUDIO),
+                                   (size_t)panel_width_for(cols));
+                    printf(CLEAR_ESC);
+                    fflush(stdout);
+                    chmask = 0;
+                    force_draw = true;
+                }
+            } else if (is_k(key, cp, 'g') || is_k(key, cp, 'G') ||
+                       key == KEY_ESC) {
                 in_settings = false;
                 printf(CLEAR_ESC);
                 fflush(stdout);
@@ -311,10 +348,11 @@ int main(int argc, char **argv) {
                 if (!config_save(&cfg, save_path))
                     fprintf(stderr, "sharkvis: could not save config to %s\n",
                             save_path);
-            } else if (key == 'q' || key == 'Q' || key == 3) {
+            } else if (is_k(key, cp, 'q') || is_k(key, cp, 'Q') || key == 3) {
                 break;
             } else {
-                settings_key(st, &cfg, key, &chmask);
+                settings_key(st, &cfg, key, key == KEY_CHAR ? cp : NULL,
+                             &chmask);
                 if (chmask) {
                     apply_settings(dsp, &rnd, &audio, &cfg, &bars, heights,
                                    last_h, rows, cols, chmask,
@@ -327,14 +365,14 @@ int main(int argc, char **argv) {
                 }
             }
         } else {
-            if (key == 'g' || key == 'G') {
+            if (is_k(key, cp, 'g') || is_k(key, cp, 'G')) {
                 in_settings = true;
                 chmask = 0;
                 printf(CLEAR_ESC);
                 fflush(stdout);
                 renderer_set_offset(&rnd, (size_t)panel_width_for(cols));
                 force_draw = true;
-            } else if (key == 'q' || key == 'Q' || key == 3) {
+            } else if (is_k(key, cp, 'q') || is_k(key, cp, 'Q') || key == 3) {
                 break;
             }
         }

@@ -21,7 +21,7 @@ typedef struct {
     char *gradient_low;
     char *gradient_high;
     char *mode;
-    char *charset;
+    char *glyphs;
 } srk_config;
 
 typedef struct {

@@ -16,7 +16,12 @@ typedef struct settings_ui settings_ui;
 
 settings_ui *settings_new(void);
 void settings_free(settings_ui *s);
-void settings_key(settings_ui *s, srk_config *cfg, int key, unsigned *changed);
+void settings_key(settings_ui *s, srk_config *cfg, int key, const char *cp,
+                 unsigned *changed);
+bool settings_is_editing(const settings_ui *s);
+void settings_edit_begin(settings_ui *s, const srk_config *cfg);
+void settings_edit_key(settings_ui *s, srk_config *cfg, int code, const char *cp,
+                      unsigned *changed);
 void settings_draw(settings_ui *s, const srk_config *cfg, char *out,
                    size_t *out_len, size_t cap, unsigned rows, int panel_width);
 

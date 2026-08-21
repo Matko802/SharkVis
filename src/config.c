@@ -130,8 +130,8 @@ void config_default(srk_config *c) {
     c->gradient_high = strdup("ffffff");
     free(c->mode);
     c->mode = strdup("bars");
-    free(c->charset);
-    c->charset = strdup("blocks");
+    free(c->glyphs);
+    c->glyphs = strdup("\xe2\x96\x81\xe2\x96\x82\xe2\x96\x83\xe2\x96\x84\xe2\x96\x85\xe2\x96\x86\xe2\x96\x87\xe2\x96\x88");
 }
 
 char *config_default_path(void) {
@@ -163,7 +163,7 @@ void config_free(srk_config *c) {
     free(c->gradient_low);
     free(c->gradient_high);
     free(c->mode);
-    free(c->charset);
+    free(c->glyphs);
 }
 
 static void mkdir_p(const char *path) {
@@ -215,7 +215,7 @@ bool config_save(const srk_config *c, const char *path) {
     fprintf(f, "gradient_high = %s\n", c->gradient_high ? c->gradient_high : "ffffff");
     fprintf(f, "\n[visualizer]\n");
     fprintf(f, "mode = %s\n", c->mode ? c->mode : "bars");
-    fprintf(f, "charset = %s\n", c->charset ? c->charset : "blocks");
+    fprintf(f, "glyphs = %s\n", c->glyphs ? c->glyphs : "\xe2\x96\x81\xe2\x96\x82\xe2\x96\x83\xe2\x96\x84\xe2\x96\x85\xe2\x96\x86\xe2\x96\x87\xe2\x96\x88");
 
     return fclose(f) == 0;
 }
@@ -246,9 +246,11 @@ bool config_load(srk_config *c, const char *path) {
         *eq = '\0';
         char *key = trim(s);
         char *val = trim(eq + 1);
-        char *semi = strchr(val, ';');
-        if (semi)
-            *semi = '\0';
+        if (strcmp(key, "glyphs") != 0) {
+            char *semi = strchr(val, ';');
+            if (semi)
+                *semi = '\0';
+        }
         val = trim(val);
         for (char *p = key; *p; p++)
             *p = (char)tolower((unsigned char)*p);
@@ -318,9 +320,9 @@ bool config_load(srk_config *c, const char *path) {
                  strcmp(val, "lissajous") == 0)) {
                 free(c->mode);
                 c->mode = strdup(val);
-            } else if (strcmp(key, "charset") == 0) {
-                free(c->charset);
-                c->charset = strdup(val);
+            } else if (strcmp(key, "glyphs") == 0) {
+                free(c->glyphs);
+                c->glyphs = strdup(val);
             }
         }
     }
